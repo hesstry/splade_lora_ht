@@ -1,0 +1,64 @@
+# @package _global_
+
+defaults:
+############## TRAIN ###################################
+  - train/config: lora_splade
+  - train/data: distil_from_ensemble
+  - train/model: splade_cocondenser
+############## INDEX ###################################
+  - index: msmarco
+############## RETRIEVE ################################
+  - retrieve_evaluate: all
+############### FLOPS ##################################
+  - flops: msmarco
+
+
+config:
+  train_batch_size: 4
+  regularizer:
+    FLOPS:
+      lambda_d: 9e-5
+      targeted_rep: rep
+      reg: FLOPS
+    L1:
+      lambda_q: 5e-4
+      targeted_rep: rep
+      reg: L1
+  checkpoint_dir: experiments/lora_splade_r32_a32_bs16_16neg_distil_lr8e5_sl256/checkpoint
+  index_dir: experiments/lora_splade_r32_a32_bs16_16neg_distil_lr8e5_sl256/index
+  out_dir: experiments/lora_splade_r32_a32_bs16_16neg_distil_lr8e5_sl256/out
+  fp16: true
+  hf_training: true
+  max_length: 256
+  lora:
+    use: true
+    r: 32
+    a: 32
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+
+hf:
+  training:
+    resume_from_checkpoint: false
+    ddp_find_unused_parameters: true # set to true when using DDP
+    fp16: true
+    logging_steps: 50
+    save_strategy: epoch
+    save_steps: 5000
+    dataloader_drop_last: True
+    num_train_epochs: 1
+    warmup_ratio: 0.01
+    mse_margin: false
+    weight_decay: 0
+    learning_rate: 4.0e-5 # douple LR since were now updating twice as less often with another GPU
+    gradient_accumulation_steps: 4 # effective batch size becomes bs * accumulation_steps: here, 8*2 = 16, at a cost of slower training, noticed no decrease in speed with 2 vs 4 accumulations, larger batch size (-:
+    # gradient_checkpointing: True #20% slower, wait for this saving some gradient steps to reduce "saves strategically selected activations throughout the computational graph so only a fraction of the activations need to be re-computed"
+    # dataloader_pin_memory: True # This lets your DataLoader allocate the samples in page-locked memory, which speeds-up the transfer.
+    # torch_compile: True # 
+  model:
+    dense: false
+    shared_weights: true
+  data:
+    distillation: true
+    n_negatives: 16

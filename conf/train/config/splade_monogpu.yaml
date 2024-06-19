@@ -4,7 +4,7 @@ lr: 2e-5
 seed: 123
 gradient_accumulation_steps: 1
 weight_decay: 0.01
-validation_metrics: [ MRR@10, recall@100, recall@200, recall@500 ]
+validation_metrics: [ MRR@10, recall@100, recall@200, recall@500 , recall@1000]
 pretrained_no_yamlconfig: false
 nb_iterations: 150000
 train_batch_size: 16  # number of gpus needs to divide this

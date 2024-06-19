@@ -1,0 +1,11 @@
+# @package config
+seed: 123
+validation_metrics: [ MRR@10, recall@100, recall@200, recall@500 , recall@1000]
+pretrained_no_yamlconfig: false
+eval_batch_size: 16
+index_retrieve_batch_size: 16
+record_frequency: 10000
+train_monitoring_freq: 500
+warmup_steps: 6000
+matching_type: splade
+monitoring_ckpt: MRR@10  # or e.g. MRR@10

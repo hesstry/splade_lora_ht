@@ -1,0 +1,58 @@
+defaults:
+############## TRAIN ###################################
+  - train/config: splade
+  - train/data: distil_from_ensemble
+  - train/model: splade
+############## INDEX ###################################
+  - index: msmarco
+############## RETRIEVE ################################
+  - retrieve_evaluate: all
+############### FLOPS ##################################
+  - flops: msmarco    
+
+# Direct PARAMETER setting SIGIR 23  CONFIG DENSE 32 NEG DISTILLATION
+# Updated for using lora
+config:
+  train_batch_size: 5
+  regularizer:
+    FLOPS:
+      lambda_d: 5e-3
+      targeted_rep: rep
+      reg: FLOPS
+    L1:
+      lambda_q: 5e-3
+      targeted_rep: rep
+      reg: L1
+  checkpoint_dir:  ??
+  index_dir: ??
+  out_dir: ??
+  fp16: true
+  hf_training: true
+  max_length: 128
+  config.lr: 8.0e-5 
+  lora:
+    use: true
+    r: 32
+    a: 32
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+
+hf:
+  training:
+    resume_from_checkpoint: false
+    ddp_find_unused_parameters: false
+    fp16: true
+    logging_steps: 5000
+    save_strategy: epoch
+    dataloader_drop_last: True
+    num_train_epochs: 1
+    warmup_ratio: 0.01
+    mse_margin: false
+    weight_decay: 0
+  model:
+    dense: false
+    shared_weights: true
+  data:
+    distillation: true
+    n_negatives: 32

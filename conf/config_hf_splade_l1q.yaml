@@ -14,7 +14,7 @@ defaults:
 
 # Direct PARAMETER setting
 config:
-  train_batch_size: 1
+  train_batch_size: 16
   loss: KlDiv
   regularizer:
     FLOPS:
@@ -27,8 +27,9 @@ config:
       T: 50000
       targeted_rep: rep
       reg: L1
-  checkpoint_dir:  ??
-  index_dir: ??
-  out_dir: ??
+  checkpoint_dir:  experiments/splade_toy
+  index_dir: experiments/splade_toy/index
+  out_dir: experiments/splade_toy/out
   fp16: true
   hf_training: true
+  # lora: true

@@ -1,0 +1,278 @@
+So far this is what I have covered:
+- Succesfully trained multiple models on a single GPU with no more than 10hrs of training
+
+    - Model one:
+        LoRA SPLADE --- r32, a32, dropout0.1, rslora=True
+        ~4hrs of training
+        MRR@10: 0.357
+        R@1000: 0.973
+        BEIR_AVG: 0.428
+
+Ideas for this model:
+    - Analyze the effect of different ranks to determine if any are more viable for LoRA with SPARSE retrieval
+    - Currently running:
+        - r1a1
+            - MRR@10: 0.3401841997544003
+            - R@1000: 0.9729823304680039
+        - r4a4
+            - MRR@10: 0.3324423522990853
+            - R@1000: 0.9717645654250239
+        - r8a8
+            - MRR@10: 0.3399204643653063
+            - R@1000: 0.9747492836676218
+        - r16a16
+            - MRR@10: 0.3469383613044074
+            - R@1000: 0.9755253104106971
+        - r32a32
+            - MRR@10: 0.35722569018056183
+            - R@1000: 0.9732091690544412
+        - r64a64
+            - MRR@10: 0.3383959271387631
+            - R@1000: 0.967502387774594
+
+        BEIR AVERAGES FOR ALL THE ABOVE:
+
+        [0.4354230769230769, 0.4282984615384616, 0.4281430769230769, 0.4317169230769231, 0.4287223076923077, 0.4179884615384616]
+
+        r = 1 WINS! :OOOOOO epic, really shows how LoRA maximizes out-of-domain abilities
+
+    - Model two:
+        A: DoRA SPLADE --- r32, a32 dropout 0.1, rslora=True
+            ~7hrs to train (have to use effective batch sizing with gradient accumulation)
+            MRR@10: 0.354
+            R@1000: 0.975
+            BEIR_AVG: Unknown, takes forever to run, but might be worthwhile given it did just as fine as the above model
+        B: DoRA SPLADE --- r8, a8 dropout 0.1, rslora=True
+            ~7hrs still?
+            MRR@10: 0.340
+            R@1000: 0.974
+
+            It seems although MRR@10 drops, the recall isn't hindered as much by the drop in rank
+
+    Notes:
+        - It might be worthwhile to dive deeper into DoRA, although with a 1.5x training time, it might not be as useful
+        - Since LoRA did just as well, I'm going to stick with the more in-depth analysis for LoRA with many variations to 
+            allow for an ablation study on rank
+
+    Model three:
+        - By far the strongest model, training techniques with sampled hard-negatives and ensemble distillation with multiple
+            negatives increases by 2 points, although at a cost of about 2.25x training time, all still on a single GPU through
+
+        config.lr: 2.0e-05
+        lora:
+            use: true
+            r: 32
+            a: 32
+            dropout: 0.1
+            bias: none
+            use_rslora: true
+
+        Results:
+
+        MRR@10:     0.378
+        R@1000:     0.9798 ~ 0.980
+        BEIR_AVG:   0.458
+
+        - Solid results, and might look into exploring this further maybe with quantization to see it's impacts on finetuning 
+        a retrieval model
+
+    Model 3a: make it 16 negatives, and a batch size of 32
+        - STRONGEST BABY
+        
+        Results:
+
+        MRR@10:     0.386
+        R@1000:     0.9809574976122255 ~ 0.981
+        BEIR_AVG:   0.470
+
+Model 4: ### FAIL :D, but maybe in the future hmmmm, doesn't matter since sparse retrievers make way more sense
+    - LLaMa :D 
+    - Got it working with following hyperparams:
+        - bs: 4
+        - gradient accumulation steps: 4
+            - effective bs: 16
+        - loss: KLDiv
+        - lr: 1e-4
+        - LoRA:
+            - a: 16 # a = 2*r
+            - r: 8
+            - dropout: 0.1
+            - rslora: true
+            - qlora: true
+            - embeddings: cls token with eos token "</s>"
+    - Will take about 33hrs to train
+    - Accidentally used KL Divergence instead of MSE_margin :-((((
+    - It's going to take a while but I think it would be worth it to use MSE_margin...
+        - Going to ignore this for now
+    - Concerns:
+        - Did not normalize vector embeddings during finetuning, they do this in RepLLaMa and this may have negative impact on model performance
+    - It failed!
+        - NaN's all over baby :D
+    - Normalized embeddings before outputting them 
+    - Currently working but need to refactor code so entire model is a peft model and not simply the encoder
+    - TODO: 
+        - Refactor code to clean it up and mimic more so the tevatron pipeline
+            - Add build_peft and build_model function to class 
+            - Add load and save functions since these are different when using PEFT stuff
+        - Figure out optimal hyperparameters and training arguments, mostly training arguments
+            - 
+        
+Next model?
+    - At this point it feels worthwhile to try and get a strong LLM working through PEFT methods
+    - Try to replicate RepLLAMA on a mono gpu? 
+        ....... seems a bit impossbile honestly but maybe it can work (-:
+
+    - Need to think about this a bit more as well
+
+Sparsification techniques:
+    - Thresholding
+        - Soft-thresholding through learned parameters
+        - Hard-thresholding...
+    - Document based
+        - 
+    - Query based sparsification
+        - 
+    - Yang's Idea:
+        - doc_vec = ReLU(doc_vec - lambda_t1*(mean(doc_vec)))
+            - Keep the ones above the mean
+        - similarily for query vecs, learn a thresholding to increase sparsification
+    - Need to measure document length as this is a major metric for sparsity
+        - Can do so by counting non-zero weights in doc embeddings (postings list)
+
+Presentation order:
+
+- Introduce information retrieval setting
+    - Discuss current trends and current limits
+    - Main argument is dude we need a way to make these easier to train
+        - LoRA?
+    - Dense vs Sparse retrieval
+        - Focused on sparse retrieval
+    - Retrieval vs ranking
+        - Focused on finetuning retrieval setting 
+
+- Introduce the SPLADE architecture
+    - L1 vs FLOPS
+        - L1 for queries
+        - FLOPS for docs
+    - Can take advantage of years of reaearch in inverted index with the sparse vocabulary vectors
+
+- Parameter efficient finetuning (PEFT)
+    - Discuss current trends
+    - Mention some current findings for PEFT with Dense/Sparse retrieval
+    - Discuss lack of evidence to show LoRA works...
+    - rank and alpha
+        - rslora for stabalizing training
+
+Metric used to evaluate the models:
+
+    Data: MSMARCO
+    Metric1: R@K (K = 1000 is most common in literature) --- recall @ k
+        - true pos/ (true pos + false negs) 
+            - Calculates fraction of relevant data retrieved over all relevant data
+            - True pos: relevant and retrieved
+            - False neg: relevant but not retrieved
+            - Can achieve R@K of 100 if using K = length of dataset
+        - Order-agnostic
+            - Order doesn't matter, though clearly we wish order to matter for google search
+    
+    Metric2: MRR@K (K = 10 is most common in literature) --- mean reciprocal rank @ k
+        - Order-aware, higher score if ranked the more relevant data further up in the order
+        - RR = (1/Q) * \sum_{q = 1}^{Q} (1 / rank_q)
+            - Q = num queries
+            - q = actual query
+            - rank_q: rank of first actually relevant data retrieved for query q
+            - If the first ranked doc is relevant, rank_q = 1
+                - 1/rank_q = 1
+            - If the first relevant or positive result is in rank m, then rank_q = m
+                - 1/rank_q = 1/m
+            - Example:
+                - rank_q1 = 1
+                - rank_q2 = 3
+                - rank_q3 = 5
+                - Q = 3
+                - MRR@5 would be: 1/3(1/1 + 1/3 + 1/5) = 0.51
+            - @K denotes only the top K retrieved items are checked to calculate an MRR for each query
+                - MRR@5 if rank_q3 = 6 = 0 since in the top 5 queries, no relevant item is retrieved
+        - Cons:
+            - Not so great when desiring multiple returns, if MRR@10 is 1, maybe only the top 1 item is relevant worthwhile
+                the rest of the 9 retrieved docs are irrelevant, kind of nonsensical for google search
+
+    Metric3: NDCG@K (K = 10 is most common in literature) --- normalized discount cumulative gain @ k
+        - Order-aware
+        - Calculated via cumulative gain @ k 
+            - CG@K = \sum_k^{K} rel_k
+            - rel_k on a scale from 0 to most relevant (m)
+            - Number of ranks irrelevant
+        - Example on scale 0-4:
+            - Four retrieved items
+                - rel_1 = 1
+                - rel_2 = 0
+                - rel_3 = 3
+                - rel_4 = 4
+            - CG@2 = 1 + 0 = 1
+                - Not order-aware,
+                - CG@2 if rel_1 and rel_2 switched are equal
+            - DCG@K: adding order-awareness
+                - Add penalty in form: log_2(1 + k)
+                - DCG@2 = rel_1/(log_2(1 + 1)) + rel_2/(log_2(1 + 2))
+                        = 1/1 + 0/log_2 3 = 1
+                - If swapped:
+                    - DCG@2 = rel_2/(log_2(1 + 1)) + rel_1(log_2(1 + 2))
+                            = 0/1 + 1/log_2(3) 
+                            = 1/log_2(3) 
+                            = 0.63092975357
+            - DCG accounts for order, but DCG@K scores are very hard to interpret as their range depends on the variable rel_k range we chose for our data
+            - We use the Normalized DCG@K (NDCG@K) metric to fix this
+                - cuts off any results whose rank is greater than K
+                - NDCG@K normalizes DCG@K using the Ideal DCG@K (IDCG@K) rankings
+                - assume that the most relevant items are ranked highest and in order of relevance
+                - Reorder assigned ranks and calculate DCG@k
+            - Back to example:
+                - Before ordering:
+                    - rel_1 = 1
+                    - rel_2 = 0
+                    - rel_3 = 3
+                    - rel_4 = 4
+                - After ordering:
+                    - rel_1 = 4
+                    - rel_2 = 3
+                    - rel_3 = 1
+                    - rel_4 = 0
+                - IDCG@2 = rel_1/log_2(1+1) + rel_2/log_2(1 + 2)
+                        = 4/1 + 3/log_2(3)
+                        = 5.89278926071
+            - NDCG@K = DCG@K/IDCG@K
+                     = 1/5.89278926071
+                     = 0.16969892452
+        - Pros and cons of NDCG@K:
+            - optimizes for highly relevant documents
+            - order-aware
+            - easily interpretable
+            cons
+            - need to know which items are relevant for a particular query
+            - need to know whether each item is more/less relevant than other items
+                - more complex data requirements
+
+Results:
+    - It seems less epochs are needed to achieve reasonable results
+        - Paper: LoRA learns less and forgets less
+            - Does LoRA act as a regularizer so that the model learns the most appropriate patterns for retrieval earlier than without LoRA?
+
+    Sections:
+        - General efficacy of LoRA on SPLADE
+        - Effect of rank on MSMARCO
+            - Sweet spot with r = 32
+        - Effect of rank on generalization (out-of-domain)
+            - Is it able to generalize well on BEIR benchmarks?
+        - Effect of SOTA IR retrieval finetuning techniques
+            - Provides a bump of a few points compared to simple 1 neg distillation
+            - Currently waiting on maximizing with 16neg and 32bs
+                - 0.386 BABY, nice, another epoch maybe?
+        - Effect of training for more epochs
+            - So far only going once through the MSMARCO dataset
+                - Performs so damn well so far hmmmmmm
+                - This is interesting to note
+            - TODO
+        - Effect of learning rate on training?
+            - It's been noted that oftentimes LoRA may need a higher learning rate, it learns less but also forgets less
+            - TODO

@@ -1,21 +1,13 @@
 import torch
-from transformers import AutoModelForMaskedLM, AutoModel
+from transformers import AutoModelForMaskedLM, AutoModel, BitsAndBytesConfig
 from transformers.trainer import  logger
 from transformers import PreTrainedModel
 import os
 from typing import Dict, List
 from splade.utils.utils import generate_bow, clean_bow
 
-# try:
-#     from transformers.adapters.configuration import AdapterConfig
-#     from transformers.adapters import (
-#         HoulsbyConfig,
-#         PfeifferConfig,
-#         PrefixTuningConfig,
-#         LoRAConfig,
-#         CompacterConfig
-#         )
-# except ImportError: print('no adapter version')
+import accelerate
+from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
 
 class SpladeDoc(torch.nn.Module):
 
@@ -58,9 +50,6 @@ class SPLADE(torch.nn.Module):
 
 
     def __init__(self, model_type_or_dir, tokenizer=None, shared_weights=True, n_negatives=-1, splade_doc=False, model_q=None, 
-                 #adapter_name: str = None,
-                 #adapter_config: str = None, #,Union[str, AdapterConfig] = None, 
-                 #load_adapter: str = None,
                  **kwargs):
         """
         output indicates which representation(s) to output ('MLM' for MLM model)
@@ -83,90 +72,13 @@ class SPLADE(torch.nn.Module):
 
         if splade_doc:
             self.query_encoder = SpladeDoc(tokenizer=tokenizer,output_dim=self.doc_encoder.config.vocab_size)
-            #self.query_encoder_adapter_name = adapter_name + "_rep_q" if adapter_name else None
         elif shared_weights:
             self.query_encoder = self.doc_encoder
-            #self.query_encoder_adapter_name = None
         else:
             if model_q:
                 self.query_encoder = AutoModelForMaskedLM.from_pretrained(model_q)
             else:
                 self.query_encoder = AutoModelForMaskedLM.from_pretrained(model_type_or_dir)
-            #self.query_encoder_adapter_name = adapter_name + "_rep_q" if adapter_name else None
-
-        # self.adapter_config = adapter_config
-        # self.doc_encoder_adapter_name = adapter_name + "_rep" if adapter_name else None
-        # # RV ?? 
-        # if load_adapter:
-        #     print("Loading adapter {}".format(load_adapter))
-        #     self.doc_encoder.load_adapter(load_adapter)
-        #     self.doc_encoder.set_active_adapters(self.doc_encoder_adapter_name)
-        # elif self.doc_encoder_adapter_name:
-        #     self.initialize_adapters()
-
-    # def initialize_adapters(self, **kwargs):
-    #         leave_out = [kwargs.get('leave_out', "")] if isinstance(kwargs.get('leave_out', ""), int) \
-    #                     else kwargs.get('leave_out', "")
-    #         if isinstance(self.adapter_config, str):
-    #             if self.adapter_config.lower() == "houlsby":
-    #                 config = HoulsbyConfig(leave_out=list(map(int, leave_out.strip().split())))
-    #             elif self.adapter_config.lower() == "pfeiffer":
-    #                 config = PfeifferConfig(leave_out=list(map(int, leave_out.strip().split())))
-    #             elif self.adapter_config.lower() == "prefix_tuning":
-    #                 prefix_length = kwargs.get("prefix_length", 30)
-    #                 config = PrefixTuningConfig(flat=True, prefix_length=prefix_length)
-    #             elif self.adapter_config.lower() == "lora":
-    #                 r = kwargs.get("r", 8)
-    #                 alpha = kwargs.get("alpha", 16)
-    #                 config = LoRAConfig(r=r, alpha=alpha)
-    #             elif self.adapter_config == "compacter":
-    #                 config = CompacterConfig()
-    #             else:
-    #                 raise ValueError('Adapter Config can be of type: 1. houlsby\n 2. pfeiffer\n 3.prefix_tuning \n4. lora\n')
-    #         elif isinstance(self.adapter_config, AdapterConfig):
-    #             config = self.adapter_config
-    #         else:
-    #             original_ln_after = kwargs.pop("original_ln_after", True)
-    #             residual_before_ln = kwargs.pop("residual_before_ln", True)
-    #             adapter_residual_before_ln = kwargs.pop("adapter_residual_before_ln", True)
-    #             ln_before = kwargs.pop("ln_before", True)
-    #             ln_after = kwargs.pop("ln_after", True)
-    #             mh_adapter = kwargs.pop("mh_adapter", True)
-    #             output_adapter = kwargs.pop("output_adapter", True)
-    #             non_linearity = kwargs.pop("non_linearity", "relu")
-    #             reduction_factor = kwargs.pop("reduction_factor", 64)
-    #             inv_adapter = kwargs.pop("inv_adapter", None)
-    #             inv_adapter_reduction_factor = kwargs.pop("inv_adapter_reduction_factor", 64)
-    #             cross_adapter = kwargs.pop("cross_adapter", True)
-    #             config = AdapterConfig(original_ln_after=original_ln_after,
-    #                                    residual_before_ln=residual_before_ln,
-    #                                    adapter_residual_before_ln=adapter_residual_before_ln,
-    #                                    ln_before=ln_before,
-    #                                    ln_after=ln_after,
-    #                                    mh_adapter=mh_adapter,
-    #                                    output_adapter=output_adapter,
-    #                                    non_linearity=non_linearity,
-    #                                    reduction_factor=reduction_factor,
-    #                                    inv_adapter=inv_adapter,
-    #                                    inv_adapter_reduction_factor=inv_adapter_reduction_factor,
-    #                                    cross_adapter=cross_adapter,
-    #                                    leave_out=leave_out
-    #                                    )
-    #         # load adapters from local directory for resuming training or evaluation
-    #         if os.path.isdir(self.doc_encoder_adapter_name): 
-    #             self.doc_encoder.load_adapter(self.doc_encoder_adapter_name)
-    #             if self.query_encoder_adapter_name and os.path.isdir(self.query_encoder_adapter_name): 
-    #                 self.query_encoder.load_adapter(self.query_encoder_adapter_name)
-    #         else: # add new adapters for training from scratch
-    #             self.doc_encoder.add_adapter(self.doc_encoder_adapter_name, config=config)
-    #             if self.query_encoder_adapter_name:
-    #                 self.query_encoder.add_adapter(self.query_encoder_adapter_name, config=config)
-    #         self.doc_encoder.set_active_adapters(self.doc_encoder_adapter_name)
-    #         self.doc_encoder.train_adapter(self.doc_encoder_adapter_name)
-    #         if self.query_encoder_adapter_name:
-    #             self.query_encoder.set_active_adapters(self.query_encoder_adapter_name)
-    #             self.query_encoder.train_adapter(self.query_encoder_adapter_name)
-
 
     def forward(self, **tokens):
 
@@ -213,10 +125,36 @@ class SPLADE(torch.nn.Module):
         if tokenizer:
             tokenizer.save_pretrained(output_dir)
 
+    def get_linear_modules(self, encoder):
+        linear_modules = set()
+        for i, j in encoder.named_modules():
+            if "linear" in str(type(j)).lower():
+                i = i.split(".")
+                linear_modules.add(i[0] if len(i) == 1 else i[-1])
+
+        return list(linear_modules)
+
+    def get_lora_config(self, encoder, config_args):
+        print("GETTING LORA CONFIG")
+        linear_modules = self.get_linear_modules(encoder)
+        lora_config = LoraConfig(
+            task_type=TaskType.FEATURE_EXTRACTION,
+            r=config_args["r"],
+            lora_alpha=config_args["a"],
+            # target_modules=["q_lin", "v_lin", "k_lin", "out_lin", "lin1", "lin2"],
+            target_modules=linear_modules,
+            lora_dropout=config_args["dropout"],
+            bias=config_args["bias"],
+            use_rslora=config_args["use_rslora"],
+            # use_dora=config_args["use_dora"]
+        )   
+
+        return lora_config
+
 
 class DPR(torch.nn.Module):
 
-    def __init__(self, model_type_or_dir, shared_weights=True, n_negatives=-1, tokenizer=None, model_q=None, pooling='cls'):
+    def __init__(self, model_type_or_dir, shared_weights=True, n_negatives=-1, tokenizer=None, model_q=None, pooling='cls', quantization_config=None):
         """
         output indicates which representation(s) to output ('MLM' for MLM model)
         model_type_or_dir is either the name of a pre-trained model (e.g. bert-base-uncased), or the path to
@@ -224,7 +162,7 @@ class DPR(torch.nn.Module):
         """
         super().__init__()
         self.shared_weights = shared_weights       
-        self.doc_encoder = AutoModel.from_pretrained(model_type_or_dir)
+        self.doc_encoder = AutoModel.from_pretrained(model_type_or_dir, quantization_config=quantization_config, device_map="auto")
         self.n_negatives = n_negatives
         self.tokenizer = tokenizer
         self.pooling = pooling
@@ -232,9 +170,9 @@ class DPR(torch.nn.Module):
             self.query_encoder = self.doc_encoder
         else:
             if model_q:
-                self.query_encoder = AutoModel.from_pretrained(model_q)
+                self.query_encoder = AutoModel.from_pretrained(model_q, quantization_config)
             else:
-                self.query_encoder = AutoModel.from_pretrained(model_type_or_dir)
+                self.query_encoder = AutoModel.from_pretrained(model_type_or_dir, quantization_config)
 
     @staticmethod
     def mean_pooling(token_embeddings, mask):
@@ -289,3 +227,242 @@ class DPR(torch.nn.Module):
             self.query_encoder.save_pretrained(query_output_dir)
             if tokenizer:
                 tokenizer.save_pretrained(query_output_dir)
+
+class QLoRALLaMa(torch.nn.Module):
+
+    def __init__(self, model_type_or_dir, shared_weights=True, n_negatives=-1, tokenizer=None, model_q=None, pooling='cls', lora_config_args=None, quantization_config_args=None, training=True):
+        """
+        output indicates which representation(s) to output ('MLM' for MLM model)
+        model_type_or_dir is either the name of a pre-trained model (e.g. bert-base-uncased), or the path to
+        directory containing model weights, vocab etc.
+        """
+        super().__init__()
+        self.shared_weights = shared_weights  
+        #self.doc_encoder = AutoModel.from_pretrained(model_type_or_dir, quantization_config=quantization_config, device_map="auto")
+        self.n_negatives = n_negatives
+        self.tokenizer = tokenizer
+        self.training = training
+        ###################################################
+        # get quantization config for loading model in NF4bit
+        self.quantization_config = self.get_quantization_config(quantization_config_args)
+        ###################################################
+
+        ###################################################
+        # make accomodations for 4bit training
+        if training:
+            # prep encoder for QLoRA training
+            # initialize model, update special token changes and turn it into QLoRa version
+            encoder = AutoModel.from_pretrained(model_type_or_dir, quantization_config=self.quantization_config, device_map="auto")
+            encoder.gradient_checkpointing_enable()
+            encoder.config.use_cache = False # Gradient checkpointing is used by default but not compatible with caching, this is only for training and not inference
+            # encoder.enable_input_requires_grad() # from tevatron, no documentation as to why this is needed but keeping it here, not possible for LLaMaModel..., model doesn't have this capability
+            encoder = prepare_model_for_kbit_training(encoder) # preps model for QLoRA, like gradient checkpointing
+            # get the lora config to load in with adapter
+            self.lora_config = self.get_lora_config(lora_config_args, encoder)
+            # leave get_peft_model once model is fully initialized
+            # encoder = get_peft_model(encoder, self.lora_config)
+        # quantized inference would save inference time, albeit at cost of efficacy, it won't quantize outputs so still full-sized
+        # keeping this setting since this is how it was trained, so it makes sense to preserve the patterns learned in this setting
+        else:
+            # simply load the finetuned model in 4bits for 4bit inference
+            # this loads LLaMa 2 into 4 bit and adds the finetuned adapters 
+            # furthermore loads the tokenizer that was adapted for information retrieval, specifically PAD = UNK and CLS = EOS = </s>
+            encoder, tokenizer = self.load(model_type_or_dir, self.quantization_config)
+            self.tokenizer = tokenizer
+
+        self.doc_encoder = encoder
+        ###################################################
+
+        # encoder.resize_token_embeddings(len(tokenizer)) # resize to account for sep and mask tokens
+        # encoder.pad_token_id = tokenizer.pad_token_id # update configs 
+        # encoder.config.mask_token_id = tokenizer.mask_token_id
+        # encoder.config.sep_token_id = tokenizer.sep_token_id
+        # encoder.config.cls_token_id = tokenizer.cls_token_id
+        ###################################################
+
+        self.pooling = pooling
+        if shared_weights:
+            self.query_encoder = self.doc_encoder
+        else:
+            if model_q:
+                self.query_encoder = AutoModel.from_pretrained(model_q, quantization_config)
+            else:
+                self.query_encoder = AutoModel.from_pretrained(model_type_or_dir, quantization_config)
+
+    def get_quantization_config(self, config_args):
+        print("GETTING QUANTIZATION CONFIG")
+        if torch.cuda.is_bf16_supported():
+            compute_dtype = torch.bfloat16
+        else:
+            compute_dtype = torch.float16
+        # specify how to quantize the model
+        quantization_config = BitsAndBytesConfig(
+                    load_in_4bit=bool(config_args["load_in_4bit"]),
+                    bnb_4bit_quant_type=config_args["bnb_4bit_quant_type"],
+                    bnb_4bit_compute_dtype=compute_dtype,
+                    bnb_4bit_use_double_quant=bool(config_args["bnb_4bit_use_double_quant"])
+        )
+
+        return quantization_config
+
+    def get_linear_modules(self, encoder):
+        linear_modules = set()
+        for i, j in encoder.named_modules():
+            if "linear" in str(type(j)).lower():
+                i = i.split(".")
+                linear_modules.add(i[0] if len(i) == 1 else i[-1])
+
+        return list(linear_modules)
+
+    def get_lora_config(self, config_args, encoder):
+        print("GETTING LORA CONFIG")
+        linear_modules = self.get_linear_modules(encoder)
+        lora_config = LoraConfig(
+            task_type=TaskType.FEATURE_EXTRACTION,
+            r=config_args["r"],
+            lora_alpha=config_args["a"],
+            # target_modules=["q_lin", "v_lin", "k_lin", "out_lin", "lin1", "lin2"],
+            target_modules=linear_modules,
+            lora_dropout=config_args["dropout"],
+            bias=config_args["bias"],
+            use_rslora=config_args["use_rslora"],
+            use_dora=config_args["use_dora"]
+        )   
+
+        return lora_config
+
+    def print_trainable_parameters(self):
+        trainable_params = 0
+        all_param = 0
+        for _, param in self.doc_encoder.named_parameters():
+            all_param += param.numel()
+            if param.requires_grad:
+                trainable_params += param.numel()
+        print(
+            f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param:.2f}"
+        )
+
+    @staticmethod
+    def mean_pooling(token_embeddings, mask):
+        token_embeddings = token_embeddings.masked_fill(~mask[..., None].bool(), 0.)
+        sentence_embeddings = token_embeddings.sum(dim=1) / mask.sum(dim=1)[..., None]
+        return sentence_embeddings
+
+    def forward(self, **tokens):
+        if not self.shared_weights:
+            attention_mask = tokens["attention_mask"]
+            input_ids = tokens["input_ids"]
+            input_ids = input_ids.view(-1,self.n_negatives+2,input_ids.size(1))
+            attention_mask = attention_mask.view(-1,self.n_negatives+2,attention_mask.size(1))
+            docs_ids = input_ids[:,1:,:].reshape(-1,input_ids.size(2))
+            docs_attention = attention_mask[:,1:,:].reshape(-1,attention_mask.size(2))
+            queries_ids = input_ids[:,:1,:].reshape(-1,input_ids.size(2))
+            queries_attention = attention_mask[:,:1,:].reshape(-1,attention_mask.size(2))
+
+            query_result = self.query_encoder(input_ids=queries_ids,attention_mask=queries_attention)
+            query_result = query_result[0]
+            if self.pooling == 'mean':
+                queries_result = self.mean_pooling(query_result, queries_attention)
+            elif  self.pooling == 'cls': 
+                queries_result = query_result[:,0,:]
+
+            queries_result = queries_result.view(-1,1,queries_result.size(1))
+
+            docs_result = self.doc_encoder(input_ids=docs_ids,attention_mask=docs_attention)[0]
+            if self.pooling == 'mean':
+                docs_result = self.mean_pooling(docs_result, queries_attention)
+            else:
+                docs_result = docs_result[:,0,:]
+            docs_result = docs_result.view(-1,self.n_negatives+1,docs_result.size(1))
+
+            return query_result, docs_result
+
+        else:
+            # augmenting to match tevatron implementation with SPLADE pipeline
+            # https://github.com/texttron/tevatron/blob/main/examples/repllama/repllama.py
+
+            attention_mask = tokens["attention_mask"]
+
+            # print(f"FULL ATT MASK BEFORE RESHAPING SHAPE: {attention_mask.shape}")
+
+            attention_mask = attention_mask.view(-1,self.n_negatives+2,attention_mask.size(1))
+            docs_attention = attention_mask[:,1:,:].reshape(-1,attention_mask.size(2))
+            queries_attention = attention_mask[:,:1,:].reshape(-1,attention_mask.size(2))
+
+            # print(f"FULL ATT MASK AFTER RESHAPING SHAPE: {attention_mask.shape}")
+            # print(f"DOCS ATT SHAPE: {docs_attention.shape}")
+            # print(f"QUER ATT SHAPE: {queries_attention.shape}")
+
+            input_ids = tokens["input_ids"]
+
+            # print(f"FULL INPUT IDS BEFORE RESHAPING SHAPE: {input_ids.shape}")
+
+            input_ids = input_ids.view(-1,self.n_negatives+2,input_ids.size(1))
+            docs_ids = input_ids[:,1:,:].reshape(-1,input_ids.size(2))
+            queries_ids = input_ids[:,:1,:].reshape(-1,input_ids.size(2))
+
+            # print(f"FULL INPUT IDS AFTER RESHAPING SHAPE: {input_ids.shape}")
+            # print(f"DOCS IDS SHAPE: {docs_ids.shape}")
+            # print(f"QUER IDS SHAPE: {queries_ids.shape}")
+        
+            query_result = self.doc_encoder(input_ids=queries_ids,attention_mask=queries_attention, output_hidden_states=True)
+            q_hidden = query_result.hidden_states[-1]
+            q_sequence_lengths = queries_attention.sum(dim=1)
+            q_last_token_indices = q_sequence_lengths - 1
+
+            # print(f"Q_HIDDEN SHAPE: {q_hidden.shape}")
+            # print(f"Q_SEQ_LENGTHS.shape: {q_sequence_lengths.shape}")
+            # print(f"Q_LAST_TOKEN INDICES shape: {q_last_token_indices.shape}")
+
+            q_reps = q_hidden[torch.arange(q_hidden.size(0)), q_last_token_indices]
+
+            # print(f"Q REPS SHAPE BEFORE NORMALIZE: {q_reps.shape}")
+
+            q_reps = torch.nn.functional.normalize(q_reps, p=2, dim=-1)
+
+            # print(f"Q REPS SHAPE AFTER NORMALIZE: {q_reps.shape}")
+
+
+            docs_result = self.doc_encoder(input_ids=docs_ids, attention_mask=docs_attention, output_hidden_states=True)
+            d_hidden = docs_result.hidden_states[-1]
+            d_sequence_lengths = docs_attention.sum(dim=1)
+            d_last_token_indices = d_sequence_lengths - 1
+
+            # print(f"D_HIDDEN SHAPE: {d_hidden.shape}")
+            # print(f"D_SEQ_LENGTHS.shape: {d_sequence_lengths.shape}")
+            # print(f"D_LAST_TOKEN INDICES shape: {d_last_token_indices.shape}")
+
+            d_reps = d_hidden[torch.arange(d_hidden.size(0)), d_last_token_indices]
+
+            # print(f"D REPS SHAPE BEFORE NORMALIZE: {d_reps.shape}")
+
+            d_reps = torch.nn.functional.normalize(d_reps, p=2, dim=-1)
+
+            # print(f"D REPS SHAPE AFTER NORMALIZE: {d_reps.shape}")
+
+            bs = attention_mask.shape[0]
+            dim = d_reps.shape[-1]
+
+            # ensure results for bs of 1 work with the loss computations
+            q_reps = q_reps.view(bs, -1, dim) #(bs, 1, 4096)
+            d_reps = d_reps.view(bs, -1, dim) #(bs, n_neg + 1, 4096)
+
+            return q_reps, d_reps
+
+    def save(self,output_dir, tokenizer):
+        self.doc_encoder.save_pretrained(output_dir)
+        if not self.shared_weights:
+            query_output_dir = os.path.join(output_dir,"query")
+            os.makedirs(query_output_dir, exist_ok=True)
+            self.query_encoder.save_pretrained(query_output_dir)
+            if tokenizer:
+                tokenizer.save_pretrained(query_output_dir)
+
+    # this is for loading a finetuned model using QLoRA with the trained adapters
+    def load(self, model_type_or_dir, quantization_config):
+        base_encoder = AutoModel.from_pretrained(model_type_or_dir, quantization_config=quantization_config, device_map="auto")
+        tokenizer = AutoTokenizer.from_pretrained(model_type_or_dir, add_eos_token=True, use_fast=True)
+        # lora_config = LoraConfig.from_pretrained(model_type_or_dir)
+        peft_model = PeftModel.from_pretrained(base_encoder, model_type_or_dir)
+
+        return peft_model, tokenizer

@@ -1,0 +1,61 @@
+# @package _global_
+
+# FILES
+defaults: # (these specify which config FILES to use)
+  ############## TRAIN ###################################
+  - train/config: lora_splade
+  - train/data: distil_from_ensemble
+  - train/model: splade_cocondenser
+  ############## INDEX ###################################
+  - index: msmarco
+  ############## RETRIEVE ################################
+  - retrieve_evaluate: all
+  ############### FLOPS ##################################
+  - flops: msmarco
+  ################ HF TRAINING ###########################
+  - hf: training
+
+# Direct PARAMETER setting
+config:
+  train_batch_size: 16
+  loss: DistilMarginMSE
+  regularizer:
+    FLOPS:
+      lambda_d: 9e-5
+      T: 50000
+      targeted_rep: rep
+      reg: FLOPS
+    L1:
+      lambda_q: 5e-4
+      T: 50000
+      targeted_rep: rep
+      reg: L1
+  checkpoint_dir: experiments/lora_splade_ensemble_distil_monogpu_r8_a8/checkpoint
+  index_dir: experiments/lora_splade_ensemble_distil_monogpu_r8_a8/index
+  out_dir: experiments/lora_splade_ensemble_distil_monogpu_r8_a8/out
+  fp16: true
+  hf_training: true
+  config.lr: 8.0e-5 
+  lora:
+    use: true
+    r: 1
+    a: 1
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+    use_dora: false
+
+hf:
+  training:
+    resume_from_checkpoint: false
+    ddp_find_unused_parameters: false
+    fp16: true
+    logging_steps: 5000
+    num_train_epochs: 1
+    save_strategy: epoch
+    dataloader_drop_last: true
+    warmup_ratio: 0.01
+  model:
+    dense: false
+  data:
+    n_negatives: 1

@@ -26,3 +26,4 @@ config:
   checkpoint_dir: models/cocondenser_ensemble_distil_monogpu/checkpoint
   index_dir: models/cocondenser_ensemble_distil_monogpu/index
   out_dir: models/cocondenser_ensemble_distil_monogpu/out
+  # lora: true

@@ -1,0 +1,56 @@
+defaults:
+############## TRAIN ###################################
+  - train/config: llama_v2
+  - train/data: distil_from_ensemble
+  - train/model: llama_v2
+############## INDEX ###################################
+  - index: msmarco
+############## RETRIEVE ################################
+  - retrieve_evaluate: all
+
+config:
+  train_batch_size: 4
+  checkpoint_dir: experiments/qrslora_llama_v2_distil_mse_contrastive_msl256_bs8_lr1e5_r1_a2_nneg3/checkpoint
+  index_dir: experiments/qrslora_llama_v2_distil_mse_contrastive_msl256_bs8_lr1e5_r1_a2_nneg3/index
+  out_dir: experiments/qrslora_llama_v2_distil_mse_contrastive_msl256_bs8_lr1e5_r1_a2_nneg3/out
+  fp16: true
+  hf_training: true
+  max_length: 256
+  lora:
+    use: true
+    r: 1
+    a: 2
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+    use_dora: false
+    use_qlora: true
+    qlora:
+      use: True
+      load_in_4bit: True
+      bnb_4bit_quant_type: nf4
+      bnb_4bit_use_double_quant: True
+
+hf:
+  training:
+    resume_from_checkpoint: false
+    ddp_find_unused_parameters: false
+    fp16: true
+    logging_steps: 5000
+    save_strategy: steps
+    save_steps: 5000
+    dataloader_drop_last: True
+    num_train_epochs: 1
+    warmup_ratio: 0.01
+    weight_decay: 0
+    gradient_accumulation_steps: 2
+    learning_rate: 1.0e-5
+    training_loss: mse_contrastive # mimics repllama + mse distillation, this setting is weaker so distillation should ideally help...
+  model:
+    dense: true
+    shared_weights: true
+    dense_pooling: cls
+  data:
+    distillation: true
+    n_negatives: 3
+  token: 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

@@ -1,0 +1,63 @@
+defaults:
+############## TRAIN ###################################
+  - train/config: splade
+  - train/data: distil_from_ensemble
+  - train/model: distil_r32_a32_8neg_checkpoint
+############## INDEX ###################################
+  - index: msmarco
+############## RETRIEVE ################################
+  - retrieve_evaluate: all
+############### FLOPS ##################################
+  - flops: msmarco    
+################ HF TRAINING ###########################
+- hf: training
+
+config:
+  train_batch_size: 8
+  regularizer:
+    FLOPS:
+      lambda_d: 9e-5
+      targeted_rep: rep
+      reg: FLOPS
+    L1:
+      lambda_q: 5e-4
+      targeted_rep: rep
+      reg: L1
+  checkpoint_dir: experiments/lora_splade_ensemble_distil_monogpu_r32_a32_8neg_two_epochs/checkpoint
+  index_dir: experiments/lora_splade_ensemble_distil_monogpu_r32_a32_8neg_two_epochs/index
+  out_dir: experiments/lora_splade_ensemble_distil_monogpu_r32_a32_8neg_two_epochs/out
+  fp16: true
+  hf_training: true
+  max_length: 256
+  config.lr: 8.0e-5 
+  lora:
+    use: true
+    r: 32
+    a: 32
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+    use_dora: false
+
+hf:
+  training:
+    resume_from_checkpoint: false
+    ddp_find_unused_parameters: false
+    fp16: true
+    logging_steps: 5000
+    save_strategy: epoch
+    dataloader_drop_last: True
+    num_train_epochs: 1
+    warmup_ratio: 0.01
+    mse_margin: false
+    weight_decay: 0.01
+    gradient_accumulation_steps: 2 # effective batch size becomes bs * accumulation_steps: here, 8*2 = 16, at a cost of slower training
+    # gradient_checkpointing: True #20% slower, wait for this saving some gradient steps to reduce "saves strategically selected activations throughout the computational graph so only a fraction of the activations need to be re-computed"
+    # dataloader_pin_memory: True # This lets your DataLoader allocate the samples in page-locked memory, which speeds-up the transfer.
+    # torch_compile: True # 
+  model:
+    dense: false
+    shared_weights: true
+  data:
+    distillation: true
+    n_negatives: 8

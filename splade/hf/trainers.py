@@ -4,6 +4,10 @@ from transformers import PreTrainedModel
 import torch
 import os
 import numpy as np
+
+# with torchrun, relies upon splade/splade directory, need to add parent splade directory to path
+import sys
+sys.path.append('/expanse/lustre/projects/csb185/thess/splade')
 from splade.utils.utils import generate_bow, clean_bow, pruning
 
 
@@ -68,7 +72,7 @@ class BaseTrainer(Trainer):
 
 class IRTrainer(BaseTrainer):
 
-    def __init__(self, n_negatives, shared_weights=True, splade_doc=False, dense=False, *args, **kwargs):
+    def __init__(self, n_negatives, shared_weights=True, splade_doc=False, dense=False, llama=False, *args, **kwargs):
         super(IRTrainer, self).__init__(*args, **kwargs)
         self.n_negatives = n_negatives
         self.ce_loss = torch.nn.CrossEntropyLoss()
@@ -103,7 +107,7 @@ class IRTrainer(BaseTrainer):
             self.last_losses["kldiv"] = list()
 
 
-        if self.tokenizer:
+        if self.tokenizer and not llama:
             self.pad_token = self.tokenizer.special_tokens_map["pad_token"]
             self.cls_token = self.tokenizer.special_tokens_map["cls_token"]
             self.sep_token = self.tokenizer.special_tokens_map["sep_token"]
