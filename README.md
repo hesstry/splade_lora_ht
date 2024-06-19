@@ -214,7 +214,11 @@ We provide in `efficient_splade_pisa/README.md` the steps to evaluate efficient 
 
 Note that this only works when using the HF implementations of SPLADE, as it has not been incorporated into the non-HF implementation.
 
-One can see in ```splade/conf/config_lora_splade_r32_a32.yaml``` how to include LoRA use when loading the SPLADE model. 
+Relevant changes for this part of the repo can be found under: 
+* Loading the model using HF's PEFT ```get_peft_model```: splade/hf_train.py
+* Functionality for getting proper linear modules and LoRA config as model class methods: splade/hf/models.py
+
+One can see in ```conf/config_lora_splade_r32_a32.yaml``` how to include LoRA use when loading the SPLADE model. Then one can follow the instructions under the splade/hf directory to see how training with HF can be done.
 
 Once your config is setup, it should include the proper LoRA arguments like so:
 
