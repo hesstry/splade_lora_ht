@@ -5,3 +5,15 @@
 model_ckpt/
 ckpt/
 output/
+data/
+outputs/
+slurm_logs/
+experiments/
+*.ipynb
+data.tar.gz
+=0.20.0
+=0.39.0
+*checkpoints
+*evaluate
+*pisa
+triplets.tar.gz
