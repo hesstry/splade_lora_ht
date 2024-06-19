@@ -5,6 +5,7 @@
 [![weights](https://img.shields.io/badge/weights-splade-blue)](https://europe.naverlabs.com/research/machine-learning-and-optimization/splade-models/)
 
 ## What's New:
+* June 2024: Added the ability to use LoRA with SPLADE and provide various thresholding techniques in order to improve upon SPLADE's efficiency
 * November 2023: Better training code for SPLADE and rerankers training (e.g, cross encoders, RankT5) available; new models coming soon on github!
 * July 2023: We add the code for static pruning SPLADE indexes in order to reproduce [A Static Pruning Study on Sparse Neural Retrievers](https://arxiv.org/abs/2304.12702)
 * May 2023:  We add a new branch (based on HF Trainer) allowing training with several negatives : https://github.com/naver/splade/tree/hf
@@ -208,6 +209,38 @@ done
 We provide in `efficient_splade_pisa/README.md` the steps to evaluate efficient SPLADE models with PISA.
 
 ***
+
+### Using LoRA with SPLADE
+
+Note that this only works when using the HF implementations of SPLADE, as it has not been incorporated into the non-HF implementation.
+
+One can see in ```splade/conf/config_lora_splade_r32_a32.yaml``` how to include LoRA use when loading the SPLADE model. 
+
+Once your config is setup, it should include the proper LoRA arguments like so:
+
+```
+# @package _global_
+
+# FILES
+defaults: # (these specify which config FILES to use)
+  ...
+
+# Direct PARAMETER setting
+config:
+  training args...
+  directory args...
+  lora:
+    use: true
+    r: 32
+    a: 32
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+    use_dora: false
+
+hf:
+  hf training args...
+```
 
 # Cite :scroll:
 
