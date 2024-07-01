@@ -16,6 +16,8 @@ from sentence_transformers.evaluation import SentenceEvaluator
 from sentence_transformers.model_card_templates import ModelCardTemplate
 from sentence_transformers.util import import_from_string, batch_to_device, fullname, snapshot_download
 
+import os
+
 def filter(x):
     while (x[-1] == 0):
         x.pop(-1)
@@ -204,8 +206,8 @@ class SentenceTransformerA(SentenceTransformer):
                     scale_before_step = scaler.get_scale()
                     scaler.scale(loss_value/accum_iter).backward()
 
-                    print('gradq:', loss_model.q_thres.grad)
-                    print('gradd:', loss_model.d_thres.grad)
+                    print('gradq:', loss_model.model[0].q_thres.grad)
+                    print('gradd:', loss_model.model[0].d_thres.grad)
                     
                     if (epoch + 1) % accum_iter == 0:
                         scaler.unscale_(optimizer)
@@ -222,8 +224,8 @@ class SentenceTransformerA(SentenceTransformer):
                     loss_value.backward()
                     torch.nn.utils.clip_grad_norm_(loss_model.parameters(), max_grad_norm)
                     
-                    print('gradq:', loss_model.q_thres.grad)
-                    print('gradd:', loss_model.d_thres.grad)
+                    print('gradq:', loss_model.model[0].q_thres.grad)
+                    print('gradd:', loss_model.model[0].d_thres.grad)
 
                     if (epoch + 1) % accum_iter == 0:
                         optimizer.step()
@@ -247,12 +249,26 @@ class SentenceTransformerA(SentenceTransformer):
             if checkpoint_path is not None and checkpoint_save_steps is not None and checkpoint_save_steps > 0 and global_step % checkpoint_save_steps == 0 and (epoch + 1) % accum_iter == 0:
                 print("save at global step ", global_step)
                 self._save_checkpoint(checkpoint_path, checkpoint_save_total_limit, global_step)
+                # TODO manual for now, but usually the first module is the model we're training anyways
+                print("CHECKPOINT PATH")
+                curr_checkpoint_path = os.path.join(checkpoint_path, f"{global_step}")
+                print(curr_checkpoint_path)
+                state_dict_path = os.path.join(curr_checkpoint_path, "state_dict.pt")
+                # loss_model.model[0]
+                torch.save(loss_model.model[0].state_dict(), state_dict_path)
 
 
             self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
 
         if evaluator is None and output_path is not None:   #No evaluator, but output path: save final model version
             self.save(output_path)
+            state_dict_path = os.path.join(output_path, "state_dict.pt")
+            torch.save(loss_model.model[0].state_dict(), state_dict_path)
 
         if checkpoint_path is not None:
             self._save_checkpoint(checkpoint_path, checkpoint_save_total_limit, global_step)
+            print("CHECKPOINT PATH")
+            curr_checkpoint_path = os.path.join(checkpoint_path, f"{global_step}")
+            print(curr_checkpoint_path)
+            state_dict_path = os.path.join(curr_checkpoint_path, "state_dict.pt")
+            torch.save(loss_model.model[0].state_dict(), state_dict_path)

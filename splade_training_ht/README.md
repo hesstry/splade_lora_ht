@@ -14,21 +14,25 @@ This is meant to instruct one on how to use the following pipeline which relies 
     * Therefore, if training fails, one must restart all over as the model will not have the checkpoint parameters once loaded
 
 ### Some important changes to come:
-* Allow for checkpointing
-    * Most likely involving saving state dicts so faithful loading of model can occur
-* Refactor inference so hardcoding model parameters is not needed and the pipeline is simplified
-* TBD
+* Allow for checkpointing --- Accomplished
+* TODO: Refactor inference so hardcoding model parameters is not needed and the pipeline is simplified
+* TODO: TBD
 
 ### End-to-end pipeline for fine-tuning, embedding, and inference:
 
 #### Fine-tuning
 * Using the ```run_train_orig.sh``` script with a proper model checkpoint (included in the script for now until proper organization occurs)
 * The above script relies upon ```train_splade.py```
-    * As of now only single GPU training is provided, but it would be nice to speed things up with multiple GPU's
+    * Multi-GPU should be possible using torchrun, but this hasn't been tested
     * Training takes roughly 40hours for 100,000 iterations (around the time when, empirically, the model converges)
-    * **PLEASE NOTE**: If ```accumulation = a```, to train for ```n``` steps, ```epochs = n*a```
-        * example: ```accumulation = 4```, ```epochs = 100000``` then total steps = 100,000/4 = 25,000
-* example command: ```/bin/bash -c "python -m train_splade --model_name $model_path --train_batch_size 32 --accum_iter 4 --epochs 400000 --warmup_steps 6000 --loss_type marginmse --continues --num_negs_per_system 20 --training_queries $train_queries --thresholding qd"```
+    * **PLEASE NOTE**: Training steps are multiplied by gradient accumulation steps as sentence transformer's fit function treats a single gradient calculation as a single step, but we want a single step to be one weight update, hence
+        * This changes the training arguments slightly: If desired train ```steps = n```, and gradient ```accumulation steps = a```, then train steps argument becomes: ```na```
+        * This is accounted for in the training script automatically, but should be noted since this is weird behavior... to me at least.
+* example command to train for 100000 steps with a gradient accumulation of 4: ```/bin/bash -c "python -m train_splade --model_name $model_path --train_batch_size 32 --accum_iter 4 --epochs 100000 --warmup_steps 6000 --loss_type marginmse --continues --num_negs_per_system 20 --training_queries $train_queries --thresholding qd"```
+
+#### Checkpointing
+* Note that one may now faithfully checkpoint the model and began training with the last learned threshold parameters, this is accounted for by saving a ```state_dict.pt``` file, whos path should be provided as an argument if one wishes to begin finetuning from a checkpoint
+* **NOTE**: To do so one must supply the ```--checkpoint``` argument, and a proper ```--state_dict_path``` argument so the threshold parameters can be properly instantiated from this checkoint
 
 ### Inference
 **One can use the same expanse-slurm environment setup for all of the following steps**

@@ -109,23 +109,51 @@ class MarginMSELossSplade(nn.Module):
 
         self.thresholding = thresholding
 
-        self.q_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
-        self.q_mean_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
-        self.d_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
-        self.d_mean_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
+        # self.q_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
+        # self.q_mean_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
+        # self.d_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
+        # self.d_mean_thres = nn.Parameter(torch.Tensor([0]), requires_grad=True)
         # self.term_thresh = nn.Parameter(torch.zeros((1, 30522)), requires_grad=True)
         self.iteration = 0
 
     def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor, bm25_pos: Tensor, bm25_neg: Tensor):
         # sentence_features: query, positive passage, negative passage
-        reps = [self.model(sentence_feature)['sentence_embedding'] for sentence_feature in sentence_features]
+        # reps = [self.model(sentence_feature)['sentence_embedding'] for sentence_feature in sentence_features]
 
-        embeddings_query = reps[0]
-        embeddings_pos = reps[1]
-        embeddings_neg = reps[2]
+        # embeddings_query = reps[0]
+        # embeddings_pos = reps[1]
+        # embeddings_neg = reps[2]
+
+        query_features = sentence_features[0]
+        doc_pos_features = sentence_features[1]
+        doc_neg_features = sentence_features[2]
+
+        # set up by assigning proper base model attributes before encoding
+        # queries and is training
+        # is_training set in the training fit script
+        # self.model[0].is_training = True
+
+        # set to queries
+        self.model[0].input_type = "q"
+        # print(f"ENCODING QUERIES: {self.model[0].input_type == 'q'}")
+        embeddings_query = self.model(query_features)
+
+        # set to documents
+        self.model[0].input_type = "d"
+        # print(f"ENCODING DOCUMENTS: {self.model[0].input_type == 'd'}")
+        embeddings_pos = self.model(doc_pos_features)
+        embeddings_neg = self.model(doc_neg_features)
+
+        reps = [embeddings_query, embeddings_pos, embeddings_neg]
+
+        # embeddings_query, embeddings_pos, embeddings_neg = self.model(sentence_features)
+
+        # print(embeddings_query.shape)
+        # print(embeddings_pos.shape)
+        # print(embeddings_neg.shape)
 
         """
-        Three thresholding types:
+        Thresholding types:
             q/d denotes only using q_thresh and d_thresh
 
             plus_mean denotes using both q/d thresh and query/doc mean thresholding
@@ -136,35 +164,35 @@ class MarginMSELossSplade(nn.Module):
         thresholding = self.thresholding
         # Apply proper thresholding to queries depending on desired threshold type
         #############################################################################################################################
-        if thresholding == "qd":
-            embeddings_query = self.relu(embeddings_query - self.q_thres )
+        # if thresholding == "qd":
+        #     embeddings_query = self.relu(embeddings_query - self.q_thres)
 
-        elif thresholding == "plus_mean":
-            q_mean = torch.mean(embeddings_query, dim=1, keepdim=True).cuda() # (bs, 1, 1)
-            embeddings_query = self.relu(embeddings_query - (self.q_thres + self.q_mean_thres * q_mean) ) # new thresh = q_thres + q_mean_thres * q_mean
+        # elif thresholding == "plus_mean":
+        #     q_mean = torch.mean(embeddings_query, dim=1, keepdim=True).cuda() # (bs, 1, 1)
+        #     embeddings_query = self.relu(embeddings_query - (self.q_thres + self.q_mean_thres * q_mean) ) # new thresh = q_thres + q_mean_thres * q_mean
 
-        elif thresholding == "mean":
-            q_mean = torch.mean(embeddings_query, dim=1, keepdim=True).cuda() # (bs, 1, 1)
-            embeddings_query = self.relu(embeddings_query - (self.q_mean_thres * q_mean) )
-        #############################################################################################################################
+        # elif thresholding == "mean":
+        #     q_mean = torch.mean(embeddings_query, dim=1, keepdim=True).cuda() # (bs, 1, 1)
+        #     embeddings_query = self.relu(embeddings_query - (self.q_mean_thres * q_mean) )
+        # #############################################################################################################################
 
-        # Apply proper thresholding technique to documents
-        #############################################################################################################################
-        if thresholding == "qd":
-            embeddings_pos = embeddings_pos / 2.0 * (torch.erf((embeddings_pos - self.d_thres ) / 0.1) - torch.erf((embeddings_pos + self.d_thres ) / 0.1 ) + 2)    
-            embeddings_neg = embeddings_neg / 2.0 * (torch.erf((embeddings_neg - self.d_thres ) / 0.1) - torch.erf((embeddings_neg + self.d_thres ) / 0.1 ) + 2)
+        # # Apply proper thresholding technique to documents
+        # #############################################################################################################################
+        # if thresholding == "qd":
+        #     embeddings_pos = embeddings_pos / 2.0 * (torch.erf((embeddings_pos - self.d_thres ) / 0.1) - torch.erf((embeddings_pos + self.d_thres ) / 0.1 ) + 2)    
+        #     embeddings_neg = embeddings_neg / 2.0 * (torch.erf((embeddings_neg - self.d_thres ) / 0.1) - torch.erf((embeddings_neg + self.d_thres ) / 0.1 ) + 2)
 
-        elif thresholding == "plus_mean":
-            dp_mean = torch.mean(embeddings_pos, dim=1, keepdim=True).cuda() # (bs, 1, 1)
-            dn_mean = torch.mean(embeddings_neg, dim=1, keepdim=True).cuda() # (bs, num_neg, 1)
-            embeddings_pos = embeddings_pos / 2.0 * (torch.erf((embeddings_pos - (self.d_thres + self.d_mean_thres * dp_mean) ) / 0.1) - torch.erf((embeddings_pos + (self.d_thres + self.d_mean_thres * dp_mean) ) / 0.1 ) + 2)
-            embeddings_neg = embeddings_neg / 2.0 * (torch.erf((embeddings_neg - (self.d_thres + self.d_mean_thres * dn_mean) ) / 0.1) - torch.erf((embeddings_neg + (self.d_thres + self.d_mean_thres * dn_mean) ) / 0.1 ) + 2)
+        # elif thresholding == "plus_mean":
+        #     dp_mean = torch.mean(embeddings_pos, dim=1, keepdim=True).cuda() # (bs, 1, 1)
+        #     dn_mean = torch.mean(embeddings_neg, dim=1, keepdim=True).cuda() # (bs, num_neg, 1)
+        #     embeddings_pos = embeddings_pos / 2.0 * (torch.erf((embeddings_pos - (self.d_thres + self.d_mean_thres * dp_mean) ) / 0.1) - torch.erf((embeddings_pos + (self.d_thres + self.d_mean_thres * dp_mean) ) / 0.1 ) + 2)
+        #     embeddings_neg = embeddings_neg / 2.0 * (torch.erf((embeddings_neg - (self.d_thres + self.d_mean_thres * dn_mean) ) / 0.1) - torch.erf((embeddings_neg + (self.d_thres + self.d_mean_thres * dn_mean) ) / 0.1 ) + 2)
 
-        elif thresholding == "mean":
-            dp_mean = torch.mean(embeddings_pos, dim=1, keepdim=True).cuda() # (bs, 1, 1)
-            dn_mean = torch.mean(embeddings_neg, dim=1, keepdim=True).cuda() # (bs, num_neg, 1)
-            embeddings_pos = embeddings_pos / 2.0 * (torch.erf((embeddings_pos - (self.d_mean_thres * dp_mean) ) / 0.1) - torch.erf((embeddings_pos + (self.d_mean_thres * dp_mean) ) / 0.1 ) + 2)
-            embeddings_neg = embeddings_neg / 2.0 * (torch.erf((embeddings_neg - (self.d_mean_thres * dn_mean) ) / 0.1) - torch.erf((embeddings_neg + (self.d_mean_thres * dn_mean) ) / 0.1 ) + 2)
+        # elif thresholding == "mean":
+        #     dp_mean = torch.mean(embeddings_pos, dim=1, keepdim=True).cuda() # (bs, 1, 1)
+        #     dn_mean = torch.mean(embeddings_neg, dim=1, keepdim=True).cuda() # (bs, num_neg, 1)
+        #     embeddings_pos = embeddings_pos / 2.0 * (torch.erf((embeddings_pos - (self.d_mean_thres * dp_mean) ) / 0.1) - torch.erf((embeddings_pos + (self.d_mean_thres * dp_mean) ) / 0.1 ) + 2)
+        #     embeddings_neg = embeddings_neg / 2.0 * (torch.erf((embeddings_neg - (self.d_mean_thres * dn_mean) ) / 0.1) - torch.erf((embeddings_neg + (self.d_mean_thres * dn_mean) ) / 0.1 ) + 2)
         #############################################################################################################################
 
         print('ITERATION NUMBER: ', self.iteration)
@@ -176,26 +204,32 @@ class MarginMSELossSplade(nn.Module):
         # PRINTING LENGTHS WITH RELEVANT THRESHOLD
         #############################################################################################################################
         if thresholding == "qd":
-            print('emb query len:', torch.sum(torch.where(embeddings_query > self.q_thres, 1, 0)))
-            print('emb pos len:', torch.sum(torch.where(embeddings_pos > self.d_thres, 1, 0)))
-            print('emb neg len:', torch.sum(torch.where(embeddings_neg > self.d_thres, 1, 0)))
+            print('emb query len:', torch.sum(torch.where(embeddings_query > self.model[0].q_thres, 1, 0)))
+            print('emb pos len:', torch.sum(torch.where(embeddings_pos > self.model[0].d_thres, 1, 0)))
+            print('emb neg len:', torch.sum(torch.where(embeddings_neg > self.model[0].d_thres, 1, 0)))
 
         elif thresholding == "plus_mean":
-            print('emb query len:', torch.sum(torch.where(embeddings_query > self.q_thres + q_mean * self.q_mean_thres, 1, 0)))
-            print('emb pos len:', torch.sum(torch.where(embeddings_pos > self.d_thres + dp_mean * self.d_mean_thres, 1, 0)))
-            print('emb neg len:', torch.sum(torch.where(embeddings_neg > self.d_thres + dn_mean * self.d_mean_thres, 1, 0)))
+            q_mean = torch.mean(embeddings_query, dim=1, keepdim=True)
+            dp_mean = torch.mean(embeddings_pos, dim=1, keepdim=True)
+            dn_mean = torch.mean(embeddings_neg, dim=1, keepdim=True)
+            print('emb query len:', torch.sum(torch.where(embeddings_query > self.model[0].q_thres + q_mean * self.model[0].q_mean_thres, 1, 0)))
+            print('emb pos len:', torch.sum(torch.where(embeddings_pos > self.model[0].d_thres + dp_mean * self.model[0].d_mean_thres, 1, 0)))
+            print('emb neg len:', torch.sum(torch.where(embeddings_neg > self.model[0].d_thres + dn_mean * self.model[0].d_mean_thres, 1, 0)))
 
         elif thresholding == "mean":
-            print('emb query len:', torch.sum(torch.where(embeddings_query > q_mean * self.q_mean_thres, 1, 0)))
-            print('emb pos len:', torch.sum(torch.where(embeddings_pos > dp_mean * self.d_mean_thres, 1, 0)))
-            print('emb neg len:', torch.sum(torch.where(embeddings_neg > dn_mean * self.d_mean_thres, 1, 0)))
+            q_mean = torch.mean(embeddings_query, dim=1, keepdim=True)
+            dp_mean = torch.mean(embeddings_pos, dim=1, keepdim=True)
+            dn_mean = torch.mean(embeddings_neg, dim=1, keepdim=True)
+            print('emb query len:', torch.sum(torch.where(embeddings_query > q_mean * self.model[0].q_mean_thres, 1, 0)))
+            print('emb pos len:', torch.sum(torch.where(embeddings_pos > dp_mean * self.model[0].d_mean_thres, 1, 0)))
+            print('emb neg len:', torch.sum(torch.where(embeddings_neg > dn_mean * self.model[0].d_mean_thres, 1, 0)))
         #############################################################################################################################
 
         scores_pos = self.similarity_fct(embeddings_query, embeddings_pos)
         scores_neg = self.similarity_fct(embeddings_query, embeddings_neg)
         margin_pred = scores_pos - scores_neg
 
-        flops_doc = self.lambda_d*self.FLOPS(torch.cat(reps, 0))
+        flops_doc = self.lambda_d * self.FLOPS(torch.cat(reps, 0))
         flops_query = self.lambda_q * self.L1(reps[0])
         
         if self.uniform_mse:
@@ -207,38 +241,38 @@ class MarginMSELossSplade(nn.Module):
         # CALCULATING THRESH LOSS FOR MAXIMIZING PARAMS
         #############################################################################################################################
         if thresholding == "qd":
-            thres_loss = self.lambda_thres * (torch.sum(torch.log(1+torch.exp(-self.q_thres*5))) + torch.sum(torch.log(1+torch.exp(-self.d_thres * 5))))
+            thres_loss = self.lambda_thres * (torch.sum(torch.log(1+torch.exp(-self.model[0].q_thres*5))) + torch.sum(torch.log(1+torch.exp(-self.model[0].d_thres * 5))))
 
         elif thresholding == "plus_mean":
-            thres_loss = self.lambda_thres * (torch.sum(torch.log(1+torch.exp(-self.q_mean_thres * 5))) \
-                                            + torch.sum(torch.log(1+torch.exp(-self.d_mean_thres * 5)))\
-                                            + torch.sum(torch.log(1+torch.exp(-self.q_thres * 5))) \
-                                            + torch.sum(torch.log(1+torch.exp(-self.d_thres * 5))))
+            thres_loss = self.lambda_thres * (torch.sum(torch.log(1+torch.exp(-self.model[0].q_mean_thres * 5))) \
+                                            + torch.sum(torch.log(1+torch.exp(-self.model[0].d_mean_thres * 5)))\
+                                            + torch.sum(torch.log(1+torch.exp(-self.model[0].q_thres * 5))) \
+                                            + torch.sum(torch.log(1+torch.exp(-self.model[0].d_thres * 5))))
 
         elif thresholding == "mean":
-            thres_loss = self.lambda_thres * (torch.sum(torch.log(1+torch.exp(-self.q_mean_thres * 5))) \
-                                            + torch.sum(torch.log(1+torch.exp(-self.d_mean_thres * 5))) )
+            thres_loss = self.lambda_thres * (torch.sum(torch.log(1+torch.exp(-self.model[0].q_mean_thres * 5))) \
+                                            + torch.sum(torch.log(1+torch.exp(-self.model[0].d_mean_thres * 5))) )
         #############################################################################################################################
 
         # PRINTING THE RELEVANT PARAMETERS
         #############################################################################################################################
         if thresholding == "qd":
-            print('qthres:', self.q_thres)
-            print('dthres:', self.d_thres)
+            print('qthres:', self.model[0].q_thres)
+            print('dthres:', self.model[0].d_thres)
             print('thres_loss:', thres_loss)
             print('rankloss:', rankloss, flush=True)
 
         elif thresholding == "plus_mean":
-            print('qthres:', self.q_thres)
-            print('qmeanthres:', self.q_mean_thres)
-            print('dthres:', self.d_thres)
-            print('dmeanthres:', self.d_mean_thres)
+            print('qthres:', self.model[0].q_thres)
+            print('qmeanthres:', self.model[0].q_mean_thres)
+            print('dthres:', self.model[0].d_thres)
+            print('dmeanthres:', self.model[0].d_mean_thres)
             print('thres_loss:', thres_loss)
             print('rankloss:', rankloss, flush=True)
 
         elif thresholding == "mean":
-            print('qmeanthres:', self.q_mean_thres)
-            print('dmeanthres:', self.d_mean_thres)
+            print('qmeanthres:', self.model[0].q_mean_thres)
+            print('dmeanthres:', self.model[0].d_mean_thres)
             print('thres_loss:', thres_loss)
             print('rankloss:', rankloss, flush=True)
         #############################################################################################################################

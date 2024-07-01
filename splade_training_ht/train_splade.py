@@ -55,10 +55,14 @@ parser.add_argument("--gamma", default=1.0, type=float)
 parser.add_argument("--weight_option", default='mrr_diff', type=str)
 parser.add_argument("--nway", default=1, type=int)
 parser.add_argument("--thresholding", default="qd", type=str) # acceptable: ["qd", "plus_mean", "mean"]
+parser.add_argument("--is_training", default=False, type=bool) # to propogate how thresholding should work, since this differs training vs inference
+parser.add_argument("--checkpoint", default=False, action="store_true") # whether or not to instantiate model with a checkpointed state dict
+parser.add_argument("--state_dict_path", default=None, type=str) # if --checkpoint == True, then provide a state dict to restart training from
 args = parser.parse_args()
 
 # ensure one of three valid thresholding techniques is provided to use in losses.py
 thresholding = args.thresholding
+is_training = args.is_training
 assert thresholding in ["qd", "plus_mean", "mean"], f"Thresholding type provided ('{thresholding}') not found in ['qd', 'plus_mean', 'mean']"
 
 print(f"TRAINING WITH {thresholding} THRESHOLDING")
@@ -71,12 +75,47 @@ max_passages = args.max_passages
 ce_score_margin = args.ce_score_margin
 max_seq_length = args.max_seq_length  # Max length for passages. Increasing it implies more GPU memory needed
 num_negs_per_system = args.num_negs_per_system  # We used different systems to mine hard negatives. Number of hard negatives to add from each system
-num_epochs = args.epochs  # Number of epochs we want to train
+# Number of epochs we want to train, multiply by gradient accumulation since sentence transformers counts a single gradient calculation as a step
+# Hence, below, if we want 100,000 steps with a gradient accumulation = 4, we ensure our total steps are 100,000 * 4 = 400,000 to train for 100,000 steps
+num_epochs = args.epochs * args.accum_iter
 #train_query_file = "/home/ec2-user/efs/msmarco/training_queries/train_queries_distill_splade_colbert_0.json"
 # Load our embedding model
 logging.info("Create new SBERT model")
-word_embedding_model = models.MLMTransformer(model_name, max_seq_length=max_seq_length)
+# word_embedding_model = models.MLMTransformer(model_name, max_seq_length=max_seq_length)
+# model_name = "/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/10/0_SpladeThresholding"
+# print(f"LOADING FROM CHECKPOINT TO TEST SAVED THRESHOLD PARAMETERS")
+# print(model_name)
+word_embedding_model = models.SpladeThresholding(model_name, max_seq_length=max_seq_length, thresholding=thresholding, is_training=is_training)
+
+if args.checkpoint:
+    print(f"STARTING FROM CHECKPOINT AT PATH {args.state_dict_path}")
+    state_dict_path = args.state_dict_path
+    word_embedding_model.load_state_dict(torch.load(state_dict_path))
+# assert word_embedding_model.q_thres != 0, f"q_thres: {word_embedding_model.q_thres}"
+# assert word_embedding_model.d_thres != 0, f"d_thres: {word_embedding_model.d_thres}"
+# assert word_embedding_model.q_mean_thres != 0, f"q_mean_thres: {word_embedding_model.q_mean_thres}"
+# assert word_embedding_model.d_mean_thres != 0, f"d_mean_thres: {word_embedding_model.d_mean_thres}"
+
+print(word_embedding_model.q_thres)
+print(word_embedding_model.d_thres)
+print(word_embedding_model.q_mean_thres)
+print(word_embedding_model.d_mean_thres)
+
+print(f"TRAINING FOR A TOTAL OF {num_epochs / args.accum_iter} STEPS")
+
+logging.info(word_embedding_model)
+
+# for name, param in word_embedding_model.named_parameters():
+#     logging.info(name)
+
 model = SentenceTransformerA(modules=[word_embedding_model])
+
+# for name, param in model.named_parameters():
+#     logging.info(name)
+
+print("IS TRAINING")
+model[0].is_training = True
+print(model[0].is_training == True)
 
 if args.loss_type in ["kldiv_focal", "kldiv_position_focal"]:
     model_save_path = f'./output/splade_distill_num1_{args.loss_type}_{args.weight_option}_gamma{args.gamma}-alpha{args.alpha}_denoise{args.denoise}_num{args.num_negs_per_system}_{args.loss_type}{args.nway}-lambda{args.lambda_q}-{args.lambda_d}_lr{args.lr}-batch_size_{train_batch_size}x{args.accum_iter}-{datetime.now().strftime("%Y-%m-%d")}'
@@ -85,7 +124,7 @@ else:
 
 #model_save_path = f'output/distilSplade_{args.lambda_q}_{args.lambda_d}_{model_name.replace("/", "-")}-batch_size_{train_batch_size}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 # model_save_path = "./output/plus_mean"
-model_save_path = "./output/only_mean/only_mean_90000_100000"
+model_save_path = "./output/testing_model_refactoring"
 # model_save_path = "./output/plus_mean/plus_mean_55000_100000/"
 # Write self to path
 os.makedirs(model_save_path, exist_ok=True)
@@ -272,8 +311,11 @@ model.fit(train_objectives=[(train_dataloader, train_loss)],
             warmup_steps=args.warmup_steps,
             use_amp=True,
             checkpoint_path=model_save_path,
-            checkpoint_save_steps=5000,
+            checkpoint_save_steps=5,
             optimizer_params = {'lr': args.lr},
             accum_iter = args.accum_iter)
 # Save model
+state_dict_path = os.path.join(model_save_path, "test_model_save.pt")
+print(f"SAVING MODEL STATE DICT FOR RELOADING TO: {state_dict_path}")
 model.save(model_save_path)
+# torch.save(model[0].state_dict(), state_dict_path)
