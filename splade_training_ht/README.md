@@ -10,6 +10,7 @@ This is meant to instruct one on how to use the following pipeline which relies 
         * more TBD
     * ```--checkpoint``` denoting whether or not a checkpoint using a ```saved state_dict.pt``` file is desired
     * ```--state_dict_path``` which is self-explanatory and is only used if ```--checkpoint``` is provided
+        * **NOTE**: A proper initial checkpoint must be provided to instantiate the model class, and the ```state_dict_path``` is used to correctly populate all model parameters
 
 ### Important notes:
 * **TODO**
