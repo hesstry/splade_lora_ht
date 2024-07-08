@@ -33,11 +33,17 @@ This is meant to instruct one on how to use the following pipeline which relies 
 * example command to train for 100000 steps with a gradient accumulation of 4: ```/bin/bash -c "python -m train_splade --model_name $model_path --train_batch_size 32 --accum_iter 4 --epochs 100000 --warmup_steps 6000 --loss_type marginmse --continues --num_negs_per_system 20 --training_queries $train_queries --thresholding qd"```
 
 #### Checkpointing
-* Note that one may now faithfully checkpoint the model and began training with the last learned threshold parameters, this is accounted for by saving a ```state_dict.pt``` file, whos path should be provided as an argument if one wishes to begin finetuning from a checkpoint
+* Note that one may now faithfully checkpoint the model and began training with the last learned threshold parameters, this is accounted for by saving a ```state_dict.pt``` file, whose path should be provided as an argument if one wishes to begin finetuning from a checkpoint
+    * This is accounted for in the ```sbert.py``` script, which is used by the sentence transformers API
 * **NOTE**: To do so one must supply the ```--checkpoint``` argument, and a proper ```--state_dict_path``` argument so the threshold parameters can be properly instantiated from this checkpoint
+* The script will automatically save a ```state_dict.pt``` file which is the state dict file one should provide when trying to reload this model from a checkpoint
 
 ### Inference
 **One can use the same expanse-slurm environment setup for all of the following steps, an example environment can be found in embed_docs.sh**
+
+**NOTES**: 
+* Scaling: This is accounted for during inference, such that the final outputs will have already been scaled, one can find this is done in the ```inference_SPLADE.py``` and the ```inference_q_SPLADE.py``` scripts
+* ...
 #### Uncompressed embeddings --- index
 Example bash script that can be used for the expanse slurm system with proper commands:
 ```
@@ -108,13 +114,13 @@ COLLECTION_FILEPATH=?
 One can make this better by forcing three SBATCH scripts to run at once with a for loop and proper refactoring, for now this method works fine
 
 #### Uncompressed embeddings --- queries
-* Using a similar script as the above with same expanse-slurm initializations
+* Using a similar script as the above with same expanse-slurm environment settings but now using the ```inference_q_SPLADE.py``` script
 ```
 # encode queries
-/bin/bash -c "python inference_q_SPLADE.py $MODEL_CHECKPOINT $Q_OUTPUT_DIR"
+/bin/bash -c "python inference_q_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $Q_OUTPUT_DIR $THRESHOLDING $QUERIES_FILEPATH"
 ```
 
-Where again ```Q_OUTPUT_DIR``` denotes where to save these query embeddings
+This will save a ```queries.dev.tsv``` file in a BOW-style representation
 
 #### Build the index to prepare it for compression using PISA
 This builds all of the proper files needed for PISA compression and evaluation

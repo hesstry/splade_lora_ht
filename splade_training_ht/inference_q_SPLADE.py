@@ -6,6 +6,8 @@ import gzip
 import json
 import os
 
+from models import *
+
 class Splade(torch.nn.Module):
 
     def __init__(self, model_type_or_dir, agg="max"):
@@ -24,16 +26,41 @@ class Splade(torch.nn.Module):
             return torch.sum(torch.log(1 + torch.relu(out)) * kwargs["attention_mask"].unsqueeze(-1), dim=1)
 
 
-agg = "max"
+# agg = "max"
+# model_type_or_dir = sys.argv[1]
+# out_dir = sys.argv[2]
+# model = Splade(model_type_or_dir, agg=agg)
+
+# max pooling is already applied in the base model so this parameter is no longer needed
+# agg = "max"
 model_type_or_dir = sys.argv[1]
-out_dir = sys.argv[2]
+
+# ensure this bad boy is precisely the model checkpoint you wish to use
+model_state_dict = sys.argv[2]
+
+# this will be the directory that stores all of the "file_i.jsonl.gz" files
+out_dir = sys.argv[3]
+
+# this should be the same as the finetuning
+max_seq_length = 256
+
+# this denotes which thresholding type to use, the naming of these thresholding types is a work in progress [qd, mean, plus_mean]
+thresholding = sys.argv[4]
+
+# this allows the model to use the proper inference code block in its forward function
+is_training = False
+
+# providing the input-type allows the model to know which code block to execute during inference, this differs between queries and documents when thresholding
+input_type = "q"
+
+# the model is loaded using max pooling automatically
+model = SpladeThresholding(model_name_or_path=model_type_or_dir, max_seq_length=max_seq_length, thresholding=thresholding, is_training=is_training, input_type=input_type)
+model.load_state_dict(torch.load(model_state_dict))
 
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
 # loading model and tokenizer
-
-model = Splade(model_type_or_dir, agg=agg)
 model.eval()
 model.to("cuda")
 tokenizer = AutoTokenizer.from_pretrained(model_type_or_dir)
@@ -42,13 +69,14 @@ reverse_voc = {v: k for k, v in tokenizer.vocab.items()}
 scale = 50
 i = 0
 
-data_file = '/expanse/lustre/projects/csb185/thess/splade/data/msmarco/dev_queries/raw.tsv'
+queries_file = sys.argv[5]
 #queries_filepath = os.path.join(data_folder, 'queries.dev.tsv')
-with open(data_file) as f, open(os.path.join(sys.argv[2], "queries.dev.tsv"), "w") as fo:
+with open(queries_file) as f, open(os.path.join(out_dir, "queries.dev.tsv"), "w") as fo:
     for line in tqdm(f):
         did, doc = line.strip().split("\t")
         with torch.no_grad():
-            doc_rep = model(**tokenizer(doc, return_tensors="pt").to('cuda')).squeeze()  # (sparse) doc rep in voc space, shape (30522,)
+            tokenized = tokenizer(doc, return_tensors="pt", truncation=True).to('cuda')
+            doc_rep = model(tokenized).squeeze()  # (sparse) doc rep in voc space, shape (30522,)
 
         # get the number of non-zero dimensions in the rep:
         col = torch.nonzero(doc_rep).squeeze().cpu().tolist()

@@ -175,7 +175,8 @@ class SpladeThresholding(MLMTransformer):
     def __init__(self, model_name_or_path: str, max_seq_length: Optional[int] = 256,
                  model_args: Dict = {}, cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, do_lower_case: bool = False,
-                 tokenizer_name_or_path : str = None, thresholding: str = "qd", is_training: bool = False, input_type: str = None): # extra thresholding parameter
+                 tokenizer_name_or_path : str = None, thresholding: str = "qd", 
+                 is_training: bool = False, input_type: str = None): # extra thresholding parameter
 
         # instantiate it the same as the MLMTransformer above
         super(SpladeThresholding, self).__init__(model_name_or_path, 
@@ -231,6 +232,13 @@ class SpladeThresholding(MLMTransformer):
 
         # encode a single query or document(s)
         reps = features["sentence_embedding"]
+
+        # print(f"GOING TO RUN INFERENCE: {self.is_training == False}", flush=True)
+        # logging.info(f"GOING TO RUN INFERENCE: {self.is_training == False}")
+        # print(f"GOING TO EMBED DOCUMENTS: {self.input_type == 'd'}")
+        # logging.info(f"GOING TO EMBED DOCUMENTS: {self.input_type == 'd'}")
+        # print(f"USING THRESHOLDING TYPE: {self.thresholding}")
+        # logging.info(f"USING THRESHOLDING TYPE: {self.thresholding}")
 
         # FINETUNING INPUT->OUTPUT, this is the same regardless of training/inference
         if self.input_type == "q":
