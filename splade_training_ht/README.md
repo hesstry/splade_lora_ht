@@ -34,10 +34,10 @@ This is meant to instruct one on how to use the following pipeline which relies 
 
 #### Checkpointing
 * Note that one may now faithfully checkpoint the model and began training with the last learned threshold parameters, this is accounted for by saving a ```state_dict.pt``` file, whos path should be provided as an argument if one wishes to begin finetuning from a checkpoint
-* **NOTE**: To do so one must supply the ```--checkpoint``` argument, and a proper ```--state_dict_path``` argument so the threshold parameters can be properly instantiated from this checkoint
+* **NOTE**: To do so one must supply the ```--checkpoint``` argument, and a proper ```--state_dict_path``` argument so the threshold parameters can be properly instantiated from this checkpoint
 
 ### Inference
-**One can use the same expanse-slurm environment setup for all of the following steps**
+**One can use the same expanse-slurm environment setup for all of the following steps, an example environment can be found in embed_docs.sh**
 #### Uncompressed embeddings --- index
 Example bash script that can be used for the expanse slurm system with proper commands:
 ```
@@ -74,16 +74,38 @@ unset __conda_setup
 
 conda activate $CONDA_ENV
 
+# MODEL CHECKPOING INFORMATION
+# This is the model path in which to instantiate the class, ensure it is of the same type as the original path used for finetuning
+# eg: /path/to/model/model_directory
 MODEL_CHECKPOINT=?
-C_OUTPUT_DIR=?
 
-# encode documents
-/bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $C_OUTPUT_DIR 0 3000000"
-# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $C_OUTPUT_DIR 3000000 6000000"
-# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $C_OUTPUT_DIR 6000000 9000000"
+# STATE_DICT_PATH INFORMATION
+# The checkpoint should be a state_dict.pt file, such that the instantiated model will inherit the proper learned thresholding parameters
+# eg: /path/to/state/dict/file.pt
+STATE_DICT_PATH=?
+
+# C_EMBS_OUTPUT INFORMATION
+# This variable denotes where to store the embedded documents
+# eg: /path/to/store/embeddings
+C_EMBS_OUTPUT=?
+
+# THRESHOLDING INFORMATION
+# This variable denotes how inference should be done, this accounts for using the proper thresholds depending on which technique was used
+THRESHOLDING=? # from [qd, mean, plus_mean], naming is a work in progress
+
+# COLLECTION FILEPATH INFORMATION
+# e.g. /path/to/msmarco/corpus
+COLLECTION_FILEPATH=?
+
+# ENCODING DOCUMENTS INFORMATION
+# Run three separate SBATCH commands, one for each subgroup of the corpus, uncomment the desired subsample to encode
+# eg: MSMARCO has around 8.8mil, so can overestimate and embedding script handles rest
+# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 0 3000000 $COLLECTION_FILEPATH"
+# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 3000000 6000000 $COLLECTION_FILEPATH"
+# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 6000000 9000000 $COLLECTION_FILEPATH"
 ```
 
-Where ```$C_OUTPUT_DIR``` denotes where to save these encodings, and one can make this better by forcing three SBATCH scripts to run at once with a for loop and proper refactoring
+One can make this better by forcing three SBATCH scripts to run at once with a for loop and proper refactoring, for now this method works fine
 
 #### Uncompressed embeddings --- queries
 * Using a similar script as the above with same expanse-slurm initializations

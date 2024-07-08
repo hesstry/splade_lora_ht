@@ -175,7 +175,7 @@ class SpladeThresholding(MLMTransformer):
     def __init__(self, model_name_or_path: str, max_seq_length: Optional[int] = 256,
                  model_args: Dict = {}, cache_dir: Optional[str] = None,
                  tokenizer_args: Dict = {}, do_lower_case: bool = False,
-                 tokenizer_name_or_path : str = None, thresholding: str = "qd", is_training=False): # extra thresholding parameter
+                 tokenizer_name_or_path : str = None, thresholding: str = "qd", is_training: bool = False, input_type: str = None): # extra thresholding parameter
 
         # instantiate it the same as the MLMTransformer above
         super(SpladeThresholding, self).__init__(model_name_or_path, 
@@ -195,11 +195,11 @@ class SpladeThresholding(MLMTransformer):
         self.thresholding = thresholding
         self.is_training = is_training
 
-        self.input_type = None
+        self.input_type = input_type
 
         self.relu = torch.nn.ReLU()
 
-    def forward(self, features): # type in [q, d, qd], queries only, documents only, queries + documents (pos and neg)
+    def forward(self, features):
 
         assert self.input_type is not None, "Need to specify if you're encoding a query or a document so proper thresholding can be applied"
         
@@ -322,20 +322,32 @@ class SpladeThresholding(MLMTransformer):
         # nn.Threshold(threshold, value)
         # threshold (float) – The value to threshold at
         # value (float) – The value to replace with
+        # eg:
+        """
+        doc_emb = model.forward(doc)
+        threshold_fn = nn.Threshold(thresh, 0)
+        final_output = threshold_fn(doc_emb)
+
+        output:
+            final_output[i] == 0 if doc_emb[i] <= thresh
+            final_output[i] == doc_emb[i] if doc_emb[i] > thresh
+        """
+
+        print(f"GOING TO ENCODE DOCUMENTS USING HARD THRESHOLDING WITH THRESHOLDING TYPE: {thresholding}")
 
         if thresholding == "qd":
-            threshold = nn.Threshold(self.d_thres, 0)
+            threshold = nn.Threshold(self.d_thres.item(), 0)
             embs = threshold(embs)
 
         # threshold = d_thresh + d_mean * d_mean_thresh
         elif thresholding == "plus_mean":
-            embs_mean = torch.mean(embs, dim=1, keepdim=True) # (bs, num_neg, 1)
-            threshold = nn.Threshold(self.d_thres + embs_mean * self.d_mean_thres, 0)
+            embs_mean = torch.mean(embs, dim=1, keepdim=True) # (bs, 30522, 1)
+            threshold = nn.Threshold((self.d_thres + embs_mean * self.d_mean_thres).item(), 0)
             embs = threshold(embs)
 
         elif thresholding == "mean":
-            embs_mean = torch.mean(embs, dim=1, keepdim=True) # (bs, num_neg, 1)
-            threshold = nn.Threshold(self.d_mean_thres * embs_mean, 0)
+            embs_mean = torch.mean(embs, dim=1, keepdim=True) # (bs, 30522, 1)
+            threshold = nn.Threshold((self.d_mean_thres * embs_mean).item(), 0)
             embs = threshold(embs)
 
         return embs
