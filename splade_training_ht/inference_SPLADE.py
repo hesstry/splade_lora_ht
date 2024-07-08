@@ -122,7 +122,8 @@ with open(collection_filepath) as f:
 
         # now let's inspect the bow representation:
         weights = doc_rep[col].cpu().tolist()
-        d = {reverse_voc[k]: v for k, v in zip(col, weights)}
+        # adjust for scaling here, quantization purposes, no need to worry about proper thresholding as the model handles this in its forward function
+        d = {reverse_voc[k]: int(v * scale) for k, v in zip(col, weights)}
         outline = json.dumps({"id": int(did), "content": doc, "vector": d}) + "\n"
         fo.write(outline.encode('utf-8'))
         fo.flush()
