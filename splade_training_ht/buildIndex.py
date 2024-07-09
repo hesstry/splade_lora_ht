@@ -24,49 +24,19 @@ def binarySequence(arr, fout):
 
 if __name__ == "__main__":
 
-    # safetensors_path = "/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/plus_mean/plus_mean_55000_100000/0_MLMTransformer/model.safetensors"
-
-    # with safe_open(safetensors_path, framework="pt", device=0) as f:
-    #     for k in f.keys():
-    #         print(k)
-
-    vocab_size = 30522
+    # vocab_size = 30522
 
     json_path = sys.argv[1]
+    output_prefix = sys.argv[2]
+    num_files = int(sys.argv[3])
 
     posting = {}
 
     length = []
 
-    # note that scaling is done before 
-    scale = int(sys.argv[3])
-    thres = int(scale * float(sys.argv[5])) # since thres are between 0 and 1
-    mean_thresh = int(scale * float(sys.argv[6])) # also a float
-
-    # identify which thresholding technique we are implementing, ["qd", "mean", "plus_mean"]
-    thresh_type = sys.argv[7]
-
-    print(f"CURRENT SCALE: {scale}")
-    print(f"CURRENT qd THRESH: {thres}")
-    print(f"CURRENT MEAN THRESH: {mean_thresh}")
-    print(f"THRESHOLDING TYPE: {thresh_type}")
-
-    if "mean" in thresh_type:
-        use_mean = True
-    else:
-        use_mean = False
-
-    if "plus" in thresh_type:
-        plus_mean = True
-    else:
-        plus_mean = False
-
-    print(f"PLUS_MEAN: {plus_mean}")
-    print(f"USE MEAN: {use_mean}")
-
     json_path_prefix = os.path.join(json_path, "file_")
 
-    for i in tqdm(range(int(sys.argv[4]))):
+    for i in tqdm(range(num_files)):
         print(i)
         for line in gzip.open("%s%d.jsonl.gz" % (json_path_prefix, i)):
             doc_dict = json.loads(line)
@@ -74,46 +44,24 @@ if __name__ == "__main__":
 
             vector = doc_dict['vector']
 
-            # print(f"Vector type: {type(vector)}")
-            # print(vector)
-
-            # for k in vector:
-            #     print(k)
-
-            # print(len(vector))
-            # print(len(list(vector.values())))
-
-            # vector_mean = np.sum( np.array(list(vector.values())) ) / 30522
-
-            # print(vector_mean)
-
-            # exit()
-
-            if use_mean:
-                # np_vector = np.array(vector) # might be really slow /:
-                vector_mean = np.sum( np.array(list(vector.values())) ) / 30522 # maybe non-zero mean thresholding in future?
-                # by multiplying by mean_thresh, we've already accounted for the scaling factor
-                mean_thresh_ = mean_thresh * vector_mean # = 100 * mean_thresh * vector_mean, as desired
-
-            if plus_mean:
-                curr_thresh = thres + mean_thresh_ # = 100*thresh + 100 * mean_thresh * vector_mean = 100 (thresh + mean_thresh * vector_mean)
-            
-            elif (not plus_mean) and (use_mean):
-                curr_thresh = mean_thresh_
-
-            elif (not plus_mean) and (not use_mean):
-                curr_thresh = thres
-
             length_t = 0
+
+            # length can simply be found by calling len(vector) since inference handles storage of only non-zero entries AFTER proper thresholding technique was applied
             for k in vector:
-                score = int(scale * vector[k])
-                if score > int(curr_thresh):
-                    length_t += 1
+                # score = int(scale * vector[k])
+                # thresholding already applied during inference
+                # to calculate length, simply check if score > 0
+                # TODO unsure if this is even needed since it only saves non-zero terms during the inference stage
+                # if score > int(curr_thresh):
 
-                    if k not in posting:
-                        posting[k] = []
+                # the bottom is refactored since thresholding and scaling are applied during inference
+                score = vector[k]
+                length_t += 1
 
-                    posting[k] += [id, score]
+                if k not in posting:
+                    posting[k] = []
+
+                posting[k] += [id, score]
             
             length.append(length_t)
 
@@ -123,11 +71,11 @@ if __name__ == "__main__":
         term_id[k] = id
         id += 1
 
-    with open(sys.argv[2] + '.id', 'w') as f:
+    with open(output_prefix + '.id', 'w') as f:
         json.dump(term_id, f)
 
-    fout_docs = open(sys.argv[2] + ".docs", 'wb')
-    fout_freqs = open(sys.argv[2] + ".freqs", 'wb')
+    fout_docs = open(output_prefix + ".docs", 'wb')
+    fout_freqs = open(output_prefix + ".freqs", 'wb')
     binarySequence([len(length)], fout_docs)
 
 
@@ -136,6 +84,6 @@ if __name__ == "__main__":
         binarySequence(posting[k][1::2], fout_freqs) # score instead of freq
     fout_docs.close()
     fout_freqs.close()
-    fout_sizes = open(sys.argv[2] + ".sizes", 'wb')
+    fout_sizes = open(output_prefix + ".sizes", 'wb')
     binarySequence(length, fout_sizes)
     fout_sizes.close()

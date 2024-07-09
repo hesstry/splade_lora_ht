@@ -86,6 +86,8 @@ with open(queries_file) as f, open(os.path.join(out_dir, "queries.dev.tsv"), "w"
         weights = doc_rep[col].cpu().tolist()
         d = {reverse_voc[k]: int(v * scale) for k, v in zip(col, weights)}
         q = []
+
+        # NOTE: only terms that make it past thresholding are appended, and hence no need to worry about it in the generate_queries.py file
         for tok in d:
             for _ in range(d[tok]):
                 q.append(tok)

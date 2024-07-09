@@ -123,47 +123,49 @@ One can make this better by forcing three SBATCH scripts to run at once with a f
 This will save a ```queries.dev.tsv``` file in a BOW-style representation
 
 #### Build the index to prepare it for compression using PISA
-This builds all of the proper files needed for PISA compression and evaluation
-* Suppose $OUTPUT_PREFIX is output/index, this script will generate output/index.docs, output/index.freqs, output/index.sizes, output/index.id
-* Note that a float is provided, and in the buildIndex.py, this threshold is scaled 
+This builds all of the proper files needed for PISA compression and evaluation, an example script can be found in ```build_index.sh```
 
 ```
 # build index
-# /bin/bash -c "python buildIndex.py  $JSON_PATH_PREFIX $OUTPUT_PREFIX $SCALE $NUM_JSON_FILES $DOC_THRESH $THRESH_TYPE"
-C_OUTPUT_PREFIX=/path/to/file/prefix # output: /path/to/file/prefix.freqs, /path/to/file/prefix.sizes, /path/to/file/prefix.id
-SCALE=100
-NUM_JSON_FILES=?
-# SCALING ACCOUNTED FOR IN buildIndex.py, can provide float here
-DOC_THRESH=?
-MEAN_THRESH=?
-THRESH_TYPE=?
-/bin/bash -c "python buildIndex.py $C_OUTPUT_DIR $C_OUTPUT_PREFIX $SCALE $NUM_JSON_FILES $DOC_THRESH $MEAN_THRESH $THRESH_TYPE"
+
+# C_EMBS_OUTPUT from embed_docs.sh
+C_EMBS_OUTPUT=?
+
+# OUTPUT_PREFIX
+OUTPUT_PREFIX=/path/to/file/prefix
+
+# NUM_FILES number of files generated from the embed_docs.sh
+NUM_FILES=?
+
+/bin/bash -c "python buildIndex.py $C_EMBS_OUTPUT $OUTPUT_PREFIX $NUM_FILES"
 ```
 
-* ```SCALE=100```
-* ```NUM_JSON_FILES``` is however many document embedding json files were created in the last step
-* ```DOC_THRESH``` denotes the learned parameter when using qd thresholding
-    * ```DOC_THRESH=0``` if not using this method
-* ```MEAN_THRESH``` denotes the learned parameter when using mean thresholding
-    * ```MEAN_THRESH=0``` if not using this method
-* ```THRESH_TYPE``` denotes what threshold from the list above ```[qd, mean, plus_mean]```
+The above will produce the following files:
+* ```/path/to/file/prefix.freqs```
+* ```/path/to/file/prefix.sizes```
+* ```/path/to/file/prefix.id```
 
 #### Process encoded queries to get query id files
-**TODO**: Need to account for mean thresholding here in the ```generate_queries.py``` file
-```
-# # process encoded queries
-# python generate_queries.py $OUTPUT_PREFIX $ENCODED_QUERY_FILE $OUTPUT_QUERY_ID
-# ENCODED_QUERY_FILE=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/queries/queries.dev.tsv
-# OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/collection/index
-# OUTPUT_QUERY_ID=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/queries/queries.id
-# Q_THRESH=learned threshold x 50 # NEEDS TO BE x50 whatever float is printed out after finetuning 
-# python generate_queries.py $OUTPUT_PREFIX $ENCODED_QUERY_FILE $OUTPUT_QUERY_ID $Q_THRESH $THRESH_TYPE
-```
 
-* ```OUTPUT_PREFIX``` is the same one as the step above
-* ```OUTPUT_QUERY_ID``` is the path to write to for saving the query id results
-* ```Q_THRESH``` is a scaled version of whatever the final parameter value is
-* ```THRESH_TYPE``` is provided to allow for proper branching in the python script specific to the thresholding technique used
+An example script can be found in ```generate_queries.sh```
+
+```
+# process encoded queries and generate id listing file
+
+# OUTPUT_PREFIX INFORMATION
+# This is the same prefix provided in the build_index.sh script
+OUTPUT_PREFIX=?
+
+# ENCODED_QUERY_FILE INFORMATION
+# This is the same file generated in the embed_queries.sh script
+ENCODED_QUERY_FILE=?
+
+# QUERY_ID_PATH INFORMATION
+# This is the file created by running this script
+QUERY_ID_PATH=?
+
+python generate_queries.py $OUTPUT_PREFIX $ENCODED_QUERY_FILE $QUERY_ID_PATH
+```
 
 ### Compress, index and search
 

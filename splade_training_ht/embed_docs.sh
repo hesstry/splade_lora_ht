@@ -54,9 +54,19 @@ THRESHOLDING=plus_mean
 # Path to collection to embed e.g. MSMARCO corpus
 COLLECTION_FILEPATH=/expanse/lustre/projects/csb176/yifanq/msmarco_yingrui/collection.tsv
 
+# STARTING ID TO ENDING ID
+# STARTING_ID=0
+# ENDING_ID=3000000
+
+# STARTING_ID=3000000
+# ENDING_ID=6000000
+
+STARTING_ID=6000000
+ENDING_ID=9000000
+
 # ENCODING DOCUMENTS INFORMATION
 # Run three separate SBATCH commands, one for each subgroup of the corpus
 # eg: MSMARCO has around 8.8mil, so can overestimate and embedding script handles rest
-/bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 0 3000000 $COLLECTION_FILEPATH"
+/bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING $STARTING_ID $ENDING_ID $COLLECTION_FILEPATH"
 # /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 3000000 6000000 $COLLECTION_FILEPATH"
 # /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 6000000 9000000 $COLLECTION_FILEPATH"

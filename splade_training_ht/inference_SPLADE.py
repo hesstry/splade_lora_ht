@@ -58,6 +58,8 @@ input_type = "d"
 model = SpladeThresholding(model_name_or_path=model_type_or_dir, max_seq_length=max_seq_length, thresholding=thresholding, is_training=is_training, input_type=input_type)
 model.load_state_dict(torch.load(model_state_dict))
 
+print(model)
+
 # The below was a sanity check to ensure the model isn't starting from an initial point of finetuning where these new parameters are 0
 # assert model.q_thres != 0, f"q_thres: {model.q_thres}"
 # assert model.d_thres != 0, f"d_thres: {model.d_thres}"
@@ -78,6 +80,24 @@ print(f"INSTANTIATED MODEL WITH FOLLOWING ATTRIBUTES:")
 print(f"THRESHOLDING: {model.thresholding}")
 print(f"INFERENCE: {model.is_training == False}")
 print(f"ENCODING ONLY DOCUMENTS: {model.input_type == 'd'}")
+
+# print("PERFORMING SANITY CHECK")
+
+# input_features = {
+#     'input_ids': torch.tensor([[1, 2, 3]]),
+#     'attention_mask': torch.tensor([[1, 1, 1]]),
+#     'token_type_ids': torch.tensor([[0, 0, 0]])  # if applicable
+# }
+
+# with torch.no_grad():
+#     tokenized = tokenizer("Hello my name is something and this is a string", return_tensors="pt", truncation=True).to('cuda')
+#     print(tokenized)
+#     output = model(tokenized).squeeze()
+#     print(output)
+#     col = torch.nonzero(output).squeeze().cpu().tolist()
+#     print(col)
+#     weights = output[col].cpu().tolist()
+#     print(weights)
 
 # exit()
 
@@ -116,13 +136,13 @@ with open(collection_filepath) as f:
             # doc_rep = model.encode([doc])
             # print(doc_rep.shape)
 
-        # get the number of non-zero dimensions in the rep:
+        # get list of non-zero entries for storing doc embeddings
         col = torch.nonzero(doc_rep).squeeze().cpu().tolist()
         #print("number of actual dimensions: ", len(col))
 
         # now let's inspect the bow representation:
         weights = doc_rep[col].cpu().tolist()
-        # adjust for scaling here, quantization purposes, no need to worry about proper thresholding as the model handles this in its forward function
+        # adjust for scaling here for quantization purposes, no need to worry about proper thresholding as the model handles this in its forward function
         d = {reverse_voc[k]: int(v * scale) for k, v in zip(col, weights)}
         outline = json.dumps({"id": int(did), "content": doc, "vector": d}) + "\n"
         fo.write(outline.encode('utf-8'))

@@ -311,7 +311,7 @@ model.fit(train_objectives=[(train_dataloader, train_loss)],
             warmup_steps=args.warmup_steps,
             use_amp=True,
             checkpoint_path=model_save_path,
-            checkpoint_save_steps=5,
+            checkpoint_save_steps=5000,
             optimizer_params = {'lr': args.lr},
             accum_iter = args.accum_iter)
 # Save model

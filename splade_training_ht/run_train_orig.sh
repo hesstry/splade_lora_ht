@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A csb175
-#SBATCH --job-name="testing_model_updates"
-#SBATCH --output="./output/testing_model_refactoring/testing_model_updates-%j.out"
-#SBATCH --error="./output/testing_model_refactoring/testing_model_updates-%j.err"
+#SBATCH --job-name="testing_model_finetuning"
+#SBATCH --output="./output/testing_model_refactoring/testing_model_finetuning-%j.out"
+#SBATCH --error="./output/testing_model_refactoring/testing_model_finetuning-%j.err"
 #SBATCH --partition=gpu-shared
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
