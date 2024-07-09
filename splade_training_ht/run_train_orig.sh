@@ -1,15 +1,15 @@
 #!/bin/bash
-#SBATCH -A csb175
-#SBATCH --job-name="testing_model_finetuning"
-#SBATCH --output="./output/testing_model_refactoring/testing_model_finetuning-%j.out"
-#SBATCH --error="./output/testing_model_refactoring/testing_model_finetuning-%j.err"
+#SBATCH -A csb185
+#SBATCH --job-name="finetuning"
+#SBATCH --output="./output/qd/finetuning-%j.out"
+#SBATCH --error="./output/qd/finetuning-%j.err"
 #SBATCH --partition=gpu-shared
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --no-requeue
 #SBATCH --gpus=1
 #SBATCH --mem-per-gpu=32G
-#SBATCH -t 00:10:00
+#SBATCH -t 48:00:00
 
 module purge
 module load gpu
@@ -37,4 +37,4 @@ model_path=/expanse/lustre/projects/csb185/yifanq/SPLADE_checkpoint/0_MLMTransfo
 train_queries=/expanse/lustre/projects/csb185/yifanq/msmarco/train_queries_distill_splade_colbert_0.json
 state_dict_path=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/state_dict.pt
 # /bin/bash -c "python -m train_splade --model_name  ../msmarco/warmup_Splade_0_MLMTransformer --train_batch_size 32 --accum_iter 4 --epochs 3000000 --warmup_steps 6000 --loss_type marginmse --continues --num_negs_per_system 20 --training_queries ../msmarco/train_queries_distill_splade_colbert_0.json"
-/bin/bash -c "python -m train_splade --model_name $model_path --train_batch_size 32 --accum_iter 4 --epochs 100 --warmup_steps 6000 --loss_type marginmse --continues --num_negs_per_system 20 --training_queries $train_queries --thresholding plus_mean --checkpoint --state_dict_path $state_dict_path"
+/bin/bash -c "python -m train_splade --model_name $model_path --train_batch_size 32 --accum_iter 4 --epochs 100000 --warmup_steps 6000 --loss_type marginmse --continues --num_negs_per_system 20 --training_queries $train_queries --thresholding qd"

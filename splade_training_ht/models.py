@@ -263,7 +263,7 @@ class SpladeThresholding(MLMTransformer):
     def soft_thresholding(self, q_embs, thresholding):
 
         if thresholding == "qd":
-            thresh = self.q_thresh
+            thresh = self.q_thres
 
         elif thresholding == "plus_mean":
             q_mean = torch.mean(q_embs, dim=1, keepdim=True).cuda() # (bs, 1, 1)
