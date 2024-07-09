@@ -192,3 +192,6 @@ msmarco_lex_path=/path/to/lexical/dataset
 
 $pisa_build/build/bin/queries --encoding block_simdbp --index $collection.block_simdbp.idx --wand $collection.fixed-40.bmw --algorithm maxscore -k 1000 --queries $OUTPUT_QUERY_ID --scorer quantized
 ```
+
+### Length analysis
+TODO
