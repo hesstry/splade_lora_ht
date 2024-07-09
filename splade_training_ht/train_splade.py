@@ -58,6 +58,7 @@ parser.add_argument("--thresholding", default="qd", type=str) # acceptable: ["qd
 parser.add_argument("--is_training", default=False, type=bool) # to propogate how thresholding should work, since this differs training vs inference
 parser.add_argument("--checkpoint", default=False, action="store_true") # whether or not to instantiate model with a checkpointed state dict
 parser.add_argument("--state_dict_path", default=None, type=str) # if --checkpoint == True, then provide a state dict to restart training from
+parser.add_argument("--save_path", default="./model", type=str) # where to save the final model and checkpoints
 args = parser.parse_args()
 
 # ensure one of three valid thresholding techniques is provided to use in losses.py
@@ -91,10 +92,20 @@ if args.checkpoint:
     print(f"STARTING FROM CHECKPOINT AT PATH {args.state_dict_path}")
     state_dict_path = args.state_dict_path
     word_embedding_model.load_state_dict(torch.load(state_dict_path))
-# assert word_embedding_model.q_thres != 0, f"q_thres: {word_embedding_model.q_thres}"
-# assert word_embedding_model.d_thres != 0, f"d_thres: {word_embedding_model.d_thres}"
-# assert word_embedding_model.q_mean_thres != 0, f"q_mean_thres: {word_embedding_model.q_mean_thres}"
-# assert word_embedding_model.d_mean_thres != 0, f"d_mean_thres: {word_embedding_model.d_mean_thres}"
+
+    if thresholding == "qd":
+        assert word_embedding_model.q_thres != 0, f"q_thres: {word_embedding_model.q_thres}"
+        assert word_embedding_model.d_thres != 0, f"d_thres: {word_embedding_model.d_thres}"
+
+    elif thresholding == "plus_mean":
+        assert word_embedding_model.q_thres != 0, f"q_thres: {word_embedding_model.q_thres}"
+        assert word_embedding_model.d_thres != 0, f"d_thres: {word_embedding_model.d_thres}"
+        assert word_embedding_model.q_mean_thres != 0, f"q_mean_thres: {word_embedding_model.q_mean_thres}"
+        assert word_embedding_model.d_mean_thres != 0, f"d_mean_thres: {word_embedding_model.d_mean_thres}"
+
+    elif thresholding == "only_mean":
+        assert word_embedding_model.q_mean_thres != 0, f"q_mean_thres: {word_embedding_model.q_mean_thres}"
+        assert word_embedding_model.d_mean_thres != 0, f"d_mean_thres: {word_embedding_model.d_mean_thres}"
 
 print(word_embedding_model.q_thres)
 print(word_embedding_model.d_thres)
@@ -117,16 +128,17 @@ print("IS TRAINING")
 model[0].is_training = True
 print(model[0].is_training == True)
 
-if args.loss_type in ["kldiv_focal", "kldiv_position_focal"]:
-    model_save_path = f'./output/splade_distill_num1_{args.loss_type}_{args.weight_option}_gamma{args.gamma}-alpha{args.alpha}_denoise{args.denoise}_num{args.num_negs_per_system}_{args.loss_type}{args.nway}-lambda{args.lambda_q}-{args.lambda_d}_lr{args.lr}-batch_size_{train_batch_size}x{args.accum_iter}-{datetime.now().strftime("%Y-%m-%d")}'
-else:
-    model_save_path = f'./output/splade_distill_num1_{args.loss_type}_{args.weight_option}_denoise{args.denoise}_num{args.num_negs_per_system}_{args.loss_type}{args.nway}-lambda{args.lambda_q}-{args.lambda_d}_lr{args.lr}-batch_size_{train_batch_size}x{args.accum_iter}-{datetime.now().strftime("%Y-%m-%d")}-relu-q1l-dflop-1sqhd-thess'
+# if args.loss_type in ["kldiv_focal", "kldiv_position_focal"]:
+#     model_save_path = f'./output/splade_distill_num1_{args.loss_type}_{args.weight_option}_gamma{args.gamma}-alpha{args.alpha}_denoise{args.denoise}_num{args.num_negs_per_system}_{args.loss_type}{args.nway}-lambda{args.lambda_q}-{args.lambda_d}_lr{args.lr}-batch_size_{train_batch_size}x{args.accum_iter}-{datetime.now().strftime("%Y-%m-%d")}'
+# else:
+#     model_save_path = f'./output/splade_distill_num1_{args.loss_type}_{args.weight_option}_denoise{args.denoise}_num{args.num_negs_per_system}_{args.loss_type}{args.nway}-lambda{args.lambda_q}-{args.lambda_d}_lr{args.lr}-batch_size_{train_batch_size}x{args.accum_iter}-{datetime.now().strftime("%Y-%m-%d")}-relu-q1l-dflop-1sqhd-thess'
 
-#model_save_path = f'output/distilSplade_{args.lambda_q}_{args.lambda_d}_{model_name.replace("/", "-")}-batch_size_{train_batch_size}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
-# model_save_path = "./output/plus_mean"
-model_save_path = "./output/testing_model_refactoring"
+# #model_save_path = f'output/distilSplade_{args.lambda_q}_{args.lambda_d}_{model_name.replace("/", "-")}-batch_size_{train_batch_size}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+# # model_save_path = "./output/plus_mean"
+# model_save_path = "./output/testing_model_refactoring"
 # model_save_path = "./output/plus_mean/plus_mean_55000_100000/"
 # Write self to path
+model_save_path = args.save_path
 os.makedirs(model_save_path, exist_ok=True)
 
 train_script_path = os.path.join(model_save_path, 'train_script.py')

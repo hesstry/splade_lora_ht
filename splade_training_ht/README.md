@@ -12,13 +12,14 @@ This is meant to instruct one on how to use the following pipeline which relies 
     * ```--state_dict_path``` which is self-explanatory and is only used if ```--checkpoint``` is provided
         * **NOTE**: A proper initial checkpoint must be provided to instantiate the model class, and the ```state_dict_path``` is used to correctly populate all model parameters
 
-### Important notes:
-* **TODO**
+### Notes:
+* Don't forget to supply a proper ```--save_path``` when running the python script :sweat_smile:
 
 ### Some important changes to come:
-* Allow for checkpointing --- Accomplished
-* TODO: Refactor inference so hardcoding model parameters is not needed and the pipeline is simplified
-* TODO: TBD
+* :white_check_mark: Allow for checkpointing 
+* :white_check_mark: Allow model to handle all thresholding in forward function for simplified inference pipeline
+    * Scaling is manually done in the inference scripts for queries and documents
+* TBD
 
 ### End-to-end pipeline for fine-tuning, embedding, and inference:
 
