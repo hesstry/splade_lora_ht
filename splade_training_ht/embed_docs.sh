@@ -44,7 +44,7 @@ STATE_DICT_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/
 # C_EMBS_OUTPUT INFORMATION
 # This variable denotes where to store the embedded documents
 # eg: /path/to/store/embeddings
-C_EMBS_OUTPUT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs
+C_EMBS_OUTPUT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/d_embs
 
 # THRESHOLDING INFORMATION
 # This variable denotes how inference should be done, this accounts for using the proper thresholds depending on which technique was used
@@ -55,14 +55,14 @@ THRESHOLDING=plus_mean
 COLLECTION_FILEPATH=/expanse/lustre/projects/csb176/yifanq/msmarco_yingrui/collection.tsv
 
 # STARTING ID TO ENDING ID
-# STARTING_ID=0
-# ENDING_ID=3000000
+STARTING_ID=0
+ENDING_ID=3000000
 
 # STARTING_ID=3000000
 # ENDING_ID=6000000
 
-STARTING_ID=6000000
-ENDING_ID=9000000
+# STARTING_ID=6000000
+# ENDING_ID=9000000
 
 # ENCODING DOCUMENTS INFORMATION
 # Run three separate SBATCH commands, one for each subgroup of the corpus

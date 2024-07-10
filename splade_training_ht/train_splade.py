@@ -93,6 +93,8 @@ if args.checkpoint:
     state_dict_path = args.state_dict_path
     word_embedding_model.load_state_dict(torch.load(state_dict_path))
 
+    # quick sanity check
+
     if thresholding == "qd":
         assert word_embedding_model.q_thres != 0, f"q_thres: {word_embedding_model.q_thres}"
         assert word_embedding_model.d_thres != 0, f"d_thres: {word_embedding_model.d_thres}"
@@ -327,7 +329,7 @@ model.fit(train_objectives=[(train_dataloader, train_loss)],
             optimizer_params = {'lr': args.lr},
             accum_iter = args.accum_iter)
 # Save model
-state_dict_path = os.path.join(model_save_path, "test_model_save.pt")
+state_dict_path = os.path.join(model_save_path, "state_dict.pt")
 print(f"SAVING MODEL STATE DICT FOR RELOADING TO: {state_dict_path}")
 model.save(model_save_path)
-# torch.save(model[0].state_dict(), state_dict_path)
+torch.save(model[0].state_dict(), state_dict_path)
