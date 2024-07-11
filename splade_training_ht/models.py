@@ -341,7 +341,7 @@ class SpladeThresholding(MLMTransformer):
             final_output[i] == doc_emb[i] if doc_emb[i] > thresh
         """
 
-        print(f"GOING TO ENCODE DOCUMENTS USING HARD THRESHOLDING WITH THRESHOLDING TYPE: {thresholding}")
+        # print(f"GOING TO ENCODE DOCUMENTS USING HARD THRESHOLDING WITH THRESHOLDING TYPE: {thresholding}")
 
         if thresholding == "qd":
             threshold = nn.Threshold(self.d_thres.item(), 0)
