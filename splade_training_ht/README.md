@@ -194,5 +194,11 @@ msmarco_lex_path=/path/to/lexical/dataset
 $pisa_build/build/bin/queries --encoding block_simdbp --index $collection.block_simdbp.idx --wand $collection.fixed-40.bmw --algorithm maxscore -k 1000 --queries $OUTPUT_QUERY_ID --scorer quantized
 ```
 
+## trec eval
+
+The ```calculate relevance``` portion of the above command will produce a trec file which can be used for evaluated with a valid trec script
+
+An example of running evaluation with the trec binary can be found in ```trev_eval.sh```
+
 ### Length analysis
 TODO

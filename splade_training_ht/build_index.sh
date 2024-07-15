@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A csb185
-#SBATCH --job-name="testing_build_index"
-#SBATCH --output="./output/testing_model_refactoring/testing_build_index.%j.%N.out"
-#SBATCH --error="./output/testing_model_refactoring/testing_build_index.%j.%N.err"
+#SBATCH --job-name="build_index"
+#SBATCH --output="./output/qd/build_index.%j.%N.out"
+#SBATCH --error="./output/qd/build_index.%j.%N.err"
 #SBATCH --partition=gpu-shared
 #SBATCH --nodes=1
 #SBATCH --gpus=1
@@ -32,10 +32,14 @@ unset __conda_setup
 conda activate splade_env
 
 # C_EMBS_OUTPUT from embed_docs.sh
-C_EMBS_OUTPUT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs
+# C_EMBS_OUTPUT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs
+C_EMBS_OUTPUT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/d_embs
+
 # OUTPUT_PREFIX
-OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs/index
+# OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs/index
+OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/index
+
 # NUM_FILES
-NUM_FILES=1
+NUM_FILES=89
 
 /bin/bash -c "python buildIndex.py $C_EMBS_OUTPUT $OUTPUT_PREFIX $NUM_FILES"

@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A csb185
-#SBATCH --job-name="testing_embed_queries"
-#SBATCH --output="./output/testing_model_refactoring/testing_embed_queries.%j.%N.out"
-#SBATCH --error="./output/testing_model_refactoring/testing_embed_queries.%j.%N.err"
+#SBATCH --job-name="embed_queries"
+#SBATCH --output="./output/qd/embed_queries.%j.%N.out"
+#SBATCH --error="./output/qd/embed_queries.%j.%N.err"
 #SBATCH --partition=gpu-shared
 #SBATCH --nodes=1
 #SBATCH --gpus=1
@@ -34,20 +34,23 @@ conda activate splade_env
 # MODEL CHECKPOING INFORMATION
 # This is the model path in which to instantiate the class, ensure it is of the same type as the original path used for finetuning
 # eg: /path/to/model/model_directory
-MODEL_CHECKPOINT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/0_SpladeThresholding
+# MODEL_CHECKPOINT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/0_SpladeThresholding
+MODEL_CHECKPOINT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/45000/0_SpladeThresholding
 
 # STATE_DICT_PATH INFORMATION
 # The checkpoint should be a state_dict.pt file, such that the instantiated model will inherit the proper learned thresholding parameters
 # eg: /path/to/state/dict/file.pt
-STATE_DICT_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/state_dict.pt
+# STATE_DICT_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/state_dict.pt
+STATE_DICT_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/45000/state_dict.pt
 
 # Q_OUTPUT_DIR INFORMATION
 # This denotes the directory path where one wishes to store the query embeddings
-Q_OUTPUT_DIR=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/queries
+# Q_OUTPUT_DIR=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/plus_mean/q_embs
+Q_OUTPUT_DIR=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/q_embs
 
 # THRESHOLDING INFORMATION
 # This variable denotes how inference should be done, this accounts for using the proper thresholds depending on which technique was used
-THRESHOLDING=plus_mean
+THRESHOLDING=qd
 
 # QUERIES FILEPATH INFORMATION
 # Path to queries to embed e.g. MSMARCO dev queries

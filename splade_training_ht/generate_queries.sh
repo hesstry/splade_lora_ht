@@ -35,14 +35,16 @@ conda activate splade_env
 
 # OUTPUT_PREFIX INFORMATION
 # This is the same prefix provided in the build_index.sh script
-OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs/index
+# OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/doc_embs/index
+OUTPUT_PREFIX=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/index
 
 # ENCODED_QUERY_FILE INFORMATION
 # This is the same file generated in the embed_queries.sh script
-ENCODED_QUERY_FILE=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/queries/queries.dev.tsv
+# ENCODED_QUERY_FILE=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/queries/queries.dev.tsv
+ENCODED_QUERY_FILE=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/q_embs/queries.dev.tsv
 
 # QUERY_ID_PATH INFORMATION
 # This is the file created by running this script
-QUERY_ID_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/queries/queries.id
+QUERY_ID_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/q_ids/queries.id
 
 python generate_queries.py $OUTPUT_PREFIX $ENCODED_QUERY_FILE $QUERY_ID_PATH

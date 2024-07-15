@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A csb185
-#SBATCH --job-name="evaluate_time"
-#SBATCH --output="../slurm_logs/mean_thresholding/evaluate_time.%j.%N.out"
-#SBATCH --error="../slurm_logs/mean_thresholding/evaluate_time.%j.%N.err"
+#SBATCH --job-name="eval_time"
+#SBATCH --output="../slurm_logs/qd/eval_time.%j.%N.out"
+#SBATCH --error="../slurm_logs/qd/eval_time.%j.%N.err"
 #SBATCH --partition=gpu-shared
 #SBATCH --nodes=1
 #SBATCH --gpus=1
@@ -11,8 +11,12 @@
 #SBATCH --no-requeue
 #SBATCH -t 10:00:00
 
-collection=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/collection/index
-OUTPUT_QUERY_ID=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/queries/queries.id
+# collection=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/collection/index
+collection=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/index
+
+# OUTPUT_QUERY_ID=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/index/queries/queries.id
+OUTPUT_QUERY_ID=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/q_ids/queries.id
+
 pisa_build=/expanse/lustre/projects/csb176/yifanq/pisa
 query=msmarco_dev
 msmarco_lex_path=/expanse/lustre/projects/csb185/yifanq/msmarco.lex

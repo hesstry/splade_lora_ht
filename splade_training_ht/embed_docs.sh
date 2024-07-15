@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A csb185
-#SBATCH --job-name="testing_embed_docs"
-#SBATCH --output="./output/testing_model_refactoring/testing_embed_docs.%j.%N.out"
-#SBATCH --error="./output/testing_model_refactoring/testing_embed_docs.%j.%N.err"
+#SBATCH --job-name="embed_docs_6000000_9000000"
+#SBATCH --output="./output/qd/embed_docs_6000000_9000000.%j.%N.out"
+#SBATCH --error="./output/qd/embed_docs_6000000_9000000.%j.%N.err"
 #SBATCH --partition=gpu-shared
 #SBATCH --nodes=1
 #SBATCH --gpus=1
@@ -34,12 +34,12 @@ conda activate splade_env
 # MODEL CHECKPOING INFORMATION
 # This is the model path in which to instantiate the class, ensure it is of the same type as the original path used for finetuning
 # eg: /path/to/model/model_directory
-MODEL_CHECKPOINT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/0_SpladeThresholding
+MODEL_CHECKPOINT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/45000/0_SpladeThresholding
 
 # STATE_DICT_PATH INFORMATION
 # The checkpoint should be a state_dict.pt file, such that the instantiated model will inherit the proper learned thresholding parameters
 # eg: /path/to/state/dict/file.pt
-STATE_DICT_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/testing_model_refactoring/state_dict.pt
+STATE_DICT_PATH=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/output/qd/45000/state_dict.pt
 
 # C_EMBS_OUTPUT INFORMATION
 # This variable denotes where to store the embedded documents
@@ -48,25 +48,23 @@ C_EMBS_OUTPUT=/expanse/lustre/projects/csb185/thess/splade/splade_training_ht/ou
 
 # THRESHOLDING INFORMATION
 # This variable denotes how inference should be done, this accounts for using the proper thresholds depending on which technique was used
-THRESHOLDING=plus_mean
+THRESHOLDING=qd
 
 # COLLECTION FILEPATH INFORMATION
 # Path to collection to embed e.g. MSMARCO corpus
 COLLECTION_FILEPATH=/expanse/lustre/projects/csb176/yifanq/msmarco_yingrui/collection.tsv
 
 # STARTING ID TO ENDING ID
-STARTING_ID=0
-ENDING_ID=3000000
+# STARTING_ID=0
+# ENDING_ID=3000000
 
 # STARTING_ID=3000000
 # ENDING_ID=6000000
 
-# STARTING_ID=6000000
-# ENDING_ID=9000000
+STARTING_ID=6000000
+ENDING_ID=9000000
 
 # ENCODING DOCUMENTS INFORMATION
 # Run three separate SBATCH commands, one for each subgroup of the corpus
 # eg: MSMARCO has around 8.8mil, so can overestimate and embedding script handles rest
 /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING $STARTING_ID $ENDING_ID $COLLECTION_FILEPATH"
-# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 3000000 6000000 $COLLECTION_FILEPATH"
-# /bin/bash -c "python inference_SPLADE.py $MODEL_CHECKPOINT $STATE_DICT_PATH $C_EMBS_OUTPUT $THRESHOLDING 6000000 9000000 $COLLECTION_FILEPATH"
