@@ -1,17 +1,57 @@
-# SPLADE
+# LoRA integration with SPLADE
+
+## Note:
+* This is a fork of the original SPLADE codebase, meant as an experimental test to determine viability of LoRA within the SPLADE framework
+* I do not claim ownership for any work or contributions aside from the LoRA portion directly below
+
+### Using LoRA with SPLADE (the work I did)
+
+Note that this only works when using the HF implementations of SPLADE, as it has not been incorporated into the non-HF implementation.
+
+Relevant changes for this part of the repo can be found under: 
+* Loading the model using HF's PEFT ```get_peft_model```: splade/hf_train.py
+* Functionality for getting proper linear modules and LoRA config as model class methods: splade/hf/models.py
+
+One can see in ```conf/config_lora_splade_r32_a32.yaml``` how to include LoRA use when loading the SPLADE model. Then one can follow the instructions under the splade/hf directory to see how training with HF can be done.
+
+Once your config is setup, it should include the proper LoRA arguments like so:
+
+```
+# @package _global_
+
+# FILES
+defaults: # (these specify which config FILES to use)
+  ...
+
+# Direct PARAMETER setting
+config:
+  training args...
+  directory args...
+  lora:
+    use: true
+    r: 32
+    a: 32
+    dropout: 0.1
+    bias: none
+    use_rslora: true
+    use_dora: false
+
+hf:
+  hf training args...
+```
+
+## Original Codebase README
+* I kept this here since it involves valuable information on what SPLADE is and how to work with it
+
 [![paper](https://img.shields.io/badge/arxiv-arXiv%3A2107.05720-brightgreen)](https://arxiv.org/abs/2107.05720)
 [![blog](https://img.shields.io/badge/blog-splade-orange)](https://europe.naverlabs.com/blog/splade-a-sparse-bi-encoder-bert-based-model-achieves-effective-and-efficient-first-stage-ranking/)
 [![huggingface weights](https://img.shields.io/badge/huggingface-splade-9cf)](https://huggingface.co/naver)
 [![weights](https://img.shields.io/badge/weights-splade-blue)](https://europe.naverlabs.com/research/machine-learning-and-optimization/splade-models/)
 
-## What's New:
-* June 2024: Added the ability to use LoRA with SPLADE and provide various thresholding techniques in order to improve upon SPLADE's efficiency
 * November 2023: Better training code for SPLADE and rerankers training (e.g, cross encoders, RankT5) available; new models coming soon on github!
 * July 2023: We add the code for static pruning SPLADE indexes in order to reproduce [A Static Pruning Study on Sparse Neural Retrievers](https://arxiv.org/abs/2304.12702)
 * May 2023:  We add a new branch (based on HF Trainer) allowing training with several negatives : https://github.com/naver/splade/tree/hf
 * April 2023: We have removed the weights and pushed them to huggingface (https://huggingface.co/naver/splade_v2_max and https://huggingface.co/naver/splade_v2_distil) 
-
-
 
 <img src="./images/splade_figure.png" width="650">
 
@@ -209,42 +249,6 @@ done
 We provide in `efficient_splade_pisa/README.md` the steps to evaluate efficient SPLADE models with PISA.
 
 ***
-
-### Using LoRA with SPLADE
-
-Note that this only works when using the HF implementations of SPLADE, as it has not been incorporated into the non-HF implementation.
-
-Relevant changes for this part of the repo can be found under: 
-* Loading the model using HF's PEFT ```get_peft_model```: splade/hf_train.py
-* Functionality for getting proper linear modules and LoRA config as model class methods: splade/hf/models.py
-
-One can see in ```conf/config_lora_splade_r32_a32.yaml``` how to include LoRA use when loading the SPLADE model. Then one can follow the instructions under the splade/hf directory to see how training with HF can be done.
-
-Once your config is setup, it should include the proper LoRA arguments like so:
-
-```
-# @package _global_
-
-# FILES
-defaults: # (these specify which config FILES to use)
-  ...
-
-# Direct PARAMETER setting
-config:
-  training args...
-  directory args...
-  lora:
-    use: true
-    r: 32
-    a: 32
-    dropout: 0.1
-    bias: none
-    use_rslora: true
-    use_dora: false
-
-hf:
-  hf training args...
-```
 
 # Cite :scroll:
 
